@@ -1,12 +1,12 @@
 import matplotlib.pyplot as plt
-from bmcs_cross_section.mkappa.moment_curvature import MomentCurvature
+from bmcs_cross_section.mkappa.mkappa import MKappa
 from bmcs_cross_section.cs_design import TShape
 from bmcs_cross_section.cs_design import CSDesign
 import numpy as np
 
 
 def run_example_with_default_params():
-    mc = MomentCurvature(idx=25, n_m=100)
+    mc = MKappa(idx=25, n_m=100)
     # mc.h = 600
     # mc.b = 200
     mc.kappa_range = (-0.00002, 0.00002, 100)
@@ -37,8 +37,8 @@ def run_example_with_t_section_and_custom_params():
                          L=1000)
 
     z_arr = np.linspace(0,H,10)
-    mc = MomentCurvature(beam_design=bdesign,
-                         H=H, idx=25, n_m=100)
+    mc = MKappa(beam_design=bdesign,
+                H=H, idx=25, n_m=100)
 
 
     # Material parameters [mm], [N/mm2]

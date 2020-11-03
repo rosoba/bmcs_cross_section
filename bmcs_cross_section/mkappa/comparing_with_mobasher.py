@@ -1,7 +1,7 @@
 import sympy as sp
 import numpy as np
 import matplotlib.pyplot as plt
-from bmcs_cross_section.mkappa.moment_curvature_ import MomentCurvature, ModelData
+from bmcs_cross_section.mkappa.mkappa_ import MKappa, ModelData
 
 # For info (left is the notation in Mobasher paper, right is notation in this file):
 # ------------------------------------------------------------------
@@ -28,7 +28,7 @@ from bmcs_cross_section.mkappa.moment_curvature_ import MomentCurvature, ModelDa
 # ------------------------------------------------------------------
 
 def new_concise_way():
-    mc = MomentCurvature(idx=25, n_m=100)
+    mc = MKappa(idx=25, n_m=100)
 
     model_data = ModelData()
 
@@ -115,7 +115,7 @@ def old_way_with_mobasher_paper_symbols():
 
     ''' Creating MomentCurvature object '''
 
-    mc = MomentCurvature(idx=25, n_m=100)
+    mc = MKappa(idx=25, n_m=100)
 
     model_data = ModelData()
     model_data.h = h_

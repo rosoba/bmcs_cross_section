@@ -1,2 +1,2 @@
 
-from .moment_curvature import MomentCurvature
+from .mkappa import MKappa

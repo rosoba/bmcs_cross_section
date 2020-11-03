@@ -11,7 +11,7 @@ from bmcs_utils.api import \
     SymbExpr, InjectSymbExpr, Float, Int
 
 
-class MomentCurvatureSymbolic(SymbExpr):
+class MKappaSymbolic(SymbExpr):
     """This class handles all the symbolic calculations
     so that the class MomentCurvature doesn't use sympy ever
     """
@@ -89,7 +89,7 @@ class MomentCurvatureSymbolic(SymbExpr):
     ]
 
 
-class MomentCurvature(InteractiveModel, InjectSymbExpr):
+class MKappa(InteractiveModel, InjectSymbExpr):
     """Class returning the moment curvature relationship.
     """
     name = 'Moment-Curvature'
@@ -101,7 +101,7 @@ class MomentCurvature(InteractiveModel, InjectSymbExpr):
         Item('idx')
     )
 
-    symb_class = MomentCurvatureSymbolic
+    symb_class = MKappaSymbolic
     beam_design = tr.Instance(CSDesign, ())
 
     # Use PrototypedFrom only when the prototyped object is a class (The prototyped attribute behaves similarly
@@ -131,8 +131,9 @@ class MomentCurvature(InteractiveModel, InjectSymbExpr):
     E_j = tr.DelegatesTo('reinforcement')
     eps_sy_j = tr.DelegatesTo('reinforcement')
 
-    n_m = Int(100)
+    n_m = Int(100, DSC=True)
 
+    # @todo: fix the dependency - `h` should be replaced by _GEO
     z_m = tr.Property(depends_on='n_m, h')
 
     @tr.cached_property
@@ -265,7 +266,7 @@ class MomentCurvature(InteractiveModel, InjectSymbExpr):
         kappa_I = self.kappa_t[I_min:I_max+1]
         return M_I, kappa_I
 
-    """ get_kappa from moment_curvature_.py"""
+    """ get_kappa from mkappa_.py"""
 #         I_M = np.where(self.M_t[1:] - self.M_t[:-1] > 0)
 #         M_I = self.M_t[I_M]
 #         kappa_I = self.kappa_t[I_M]
@@ -318,7 +319,7 @@ class MomentCurvature(InteractiveModel, InjectSymbExpr):
         self.plot(*axes)
 
 if __name__ == '__main__':
-    mc = MomentCurvature(
+    mc = MKappa(
         kappa_range = (-0.0002, 0.0002, 100),
         idx=25, n_m=100
     )

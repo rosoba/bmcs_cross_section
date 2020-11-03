@@ -1,11 +1,11 @@
 import sympy as sp
 import numpy as np
 import matplotlib.pyplot as plt
-from bmcs_cross_section.mkappa.moment_curvature_ import MomentCurvature, ModelData
+from bmcs_cross_section.mkappa.mkappa_ import MKappa, ModelData
 
 
 def run_example_with_default_params():
-    mc = MomentCurvature(idx=25, n_m=100)
+    mc = MKappa(idx=25, n_m=100)
     mc.model_data.h = 600
     mc.model_data.b = 200
     mc.kappa_range = (-0.00002, 0.00002, 100)
@@ -15,7 +15,7 @@ def run_example_with_default_params():
 
 
 def run_example_with_t_section_and_custom_params():
-    mc = MomentCurvature(idx=25, n_m=100)
+    mc = MKappa(idx=25, n_m=100)
     model_data = ModelData()
 
     # Material parameters [mm], [N/mm2]

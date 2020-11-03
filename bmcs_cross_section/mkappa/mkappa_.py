@@ -30,7 +30,7 @@ class ModelData(tr.HasStrictTraits):
     eps_sy_j = tr.Array(np.float_, value=[500. / 210000.])        # Steel yield strain
 
 
-class MomentCurvatureSymbolic(tr.HasStrictTraits):
+class MKappaSymbolic(tr.HasStrictTraits):
     """"This class handles all the symbolic calculations so that the class MomentCurvature doesn't use sympy ever"""
 
     # Sympy symbols definition
@@ -138,13 +138,13 @@ class MomentCurvatureSymbolic(tr.HasStrictTraits):
         return sp.lambdify((self.eps, self.E_s, self.eps_sy), self.sig_s_eps, 'numpy')
 
 
-class MomentCurvature(InteractiveModel):
+class MKappa(InteractiveModel):
     """Class returning the moment curvature relationship."""
 
-    mcs = tr.Instance(MomentCurvatureSymbolic)
+    mcs = tr.Instance(MKappaSymbolic)
 
     def _mcs_default(self):
-        return MomentCurvatureSymbolic()
+        return MKappaSymbolic()
 
     model_data = tr.DelegatesTo('mcs')
 
@@ -322,7 +322,7 @@ class MomentCurvature(InteractiveModel):
         self.plot(*axes)
 
 if __name__ == '__main__':
-    mc = MomentCurvature(idx=25, n_m=100)
+    mc = MKappa(idx=25, n_m=100)
     print(mc.N_s_tj)
     if False:
         # If plot_norm is used, use the following:
