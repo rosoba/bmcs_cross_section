@@ -66,17 +66,6 @@ class MKappaSymbolic(SymbExpr):
         (E_s * eps_sy, eps >= eps_sy)
     )
 
-    xget_b_z = tr.Property
-
-    @tr.cached_property
-    def _get_xget_b_z(self):
-        # If b is a constant number return a lambda function that always returns a constant "b" value
-        # otherwise return a function that returns b_z values for each given z
-        if isinstance(self.model.b, int) or isinstance(self.model.b, float):
-            return lambda place_holder: self.model.b
-        else:
-            return sp.lambdify(self.z, self.model.b, 'numpy')
-
     #----------------------------------------------------------------
     # SymbExpr protocol: Parameter names to be fetched from the model
     #----------------------------------------------------------------
@@ -318,26 +307,3 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def update_plot(self, axes):
         self.plot(*axes)
 
-if __name__ == '__main__':
-    mc = MKappa(
-        kappa_range = (-0.0002, 0.0002, 100),
-        idx=25, n_m=100
-    )
-    import matplotlib.pyplot as plt
-
-    if False:
-
-        # If plot_norm is used, use the following:
-        # mc.kappa_range = (0, mc.kappa_cr * 100, 100)
-        fig, ((ax1, ax2)) = plt.subplots(1, 2, figsize=(10, 5))
-        mc.plot(ax1, ax2)
-        plt.show()
-
-    # Test getting kappa by providing Moment values
-    if True:
-
-        # Plotting
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
-        ax1.plot(mc.kappa_t, mc.M_t)
-        ax2.plot(*mc.M_kappa_data)
-        plt.show()
