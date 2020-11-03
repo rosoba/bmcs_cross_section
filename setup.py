@@ -18,7 +18,7 @@ URL = 'https://github.com/bmcs-group/bmcs_beam'
 EMAIL = 'rostislav.chudoba@rwt-aachen.de'
 AUTHOR = 'BMCS-Group: Saeed Rastegarian, Homam Spartali, Rostislav Chudoba'
 REQUIRES_PYTHON = '>=3.6.0'
-from bmcs_beam.version import __version__
+from bmcs_cross_section.version import __version__
 VERSION = __version__
 
 # What packages are required for this module to be executed?
