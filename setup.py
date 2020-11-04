@@ -12,11 +12,11 @@ from shutil import rmtree
 from setuptools import find_packages, setup, Command
 
 # Package meta-data.
-NAME = 'bmcs_beam'
+NAME = 'bmcs_cross_section'
 DESCRIPTION = "Models of brittle-matrix composite cross sections."
-URL = 'https://github.com/bmcs-group/bmcs_beam'
+URL = 'https://github.com/bmcs-group/bmcs_cross_section'
 EMAIL = 'rostislav.chudoba@rwt-aachen.de'
-AUTHOR = 'BMCS-Group: Saeed Rastegarian, Homam Spartali, Rostislav Chudoba'
+AUTHOR = 'BMCS-Group'
 REQUIRES_PYTHON = '>=3.6.0'
 from bmcs_cross_section.version import __version__
 VERSION = __version__
