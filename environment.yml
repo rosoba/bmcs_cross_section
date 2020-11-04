@@ -11,6 +11,7 @@ dependencies:
 - sympy
 - ipywidgets
 - ipympl
+- pip
 - pip:
   - -e .
   - bmcs_utils

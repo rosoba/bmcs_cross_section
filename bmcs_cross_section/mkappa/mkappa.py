@@ -8,16 +8,16 @@ from bmcs_cross_section.cs_design import CSDesign
 from scipy.optimize import root
 from bmcs_utils.api import \
     InteractiveModel, Item, View, mpl_align_xaxis, \
-    SymbExpr, InjectSymbExpr, Float, Int
+    SymbExpr, InjectSymbExpr, Float, Int, FloatRangeEditor
 
 
 class MKappaSymbolic(SymbExpr):
     """This class handles all the symbolic calculations
     so that the class MomentCurvature doesn't use sympy ever
     """
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Symbolic derivation of expressions
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     kappa = sp.Symbol('kappa', real=True)
     eps_top = sp.symbols('varepsilon_top', real=True)
     eps_bot = sp.symbols('varepsilon_bot', real=True)
@@ -25,9 +25,9 @@ class MKappaSymbolic(SymbExpr):
     eps_sy, E_s = sp.symbols('varepsilon_sy, E_s')
     eps = sp.Symbol('varepsilon', real=True)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Model parameters
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     E_ct, E_cc, eps_cr, eps_tu, mu = sp.symbols(
         r'E_ct, E_cc, varepsilon_cr, varepsilon_tu, mu', real=True,
         nonnegative=True
@@ -37,9 +37,9 @@ class MKappaSymbolic(SymbExpr):
         real=True, nonpositive=True
     )
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Symbolic derivation of expressions
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Linear profile of strain over the cross section height
     eps_z_ = eps_bot + z * (eps_top - eps_bot) / h
     eps_top_solved = {eps_top: sp.solve(kappa + eps_z_.diff(z), eps_top)[0]}
@@ -66,9 +66,9 @@ class MKappaSymbolic(SymbExpr):
         (E_s * eps_sy, eps >= eps_sy)
     )
 
-    #----------------------------------------------------------------
+    # ----------------------------------------------------------------
     # SymbExpr protocol: Parameter names to be fetched from the model
-    #----------------------------------------------------------------
+    # ----------------------------------------------------------------
     symb_model_params = ('E_ct', 'E_cc', 'eps_cr', 'eps_cy', 'eps_cu', 'mu', 'eps_tu')
 
     symb_expressions = [
@@ -86,8 +86,11 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         Item('low_kappa'),
         Item('high_kappa'),
         Item('n_kappa'),
-        Item('n_m', latex='n_m \mathrm{[mm]}', minmax=(1, 10000)),
-        Item('idx')
+        Item('n_m', latex='n_m \mathrm{[mm]}'),
+        Item('kappa_slider', latex='\kappa',
+             editor=FloatRangeEditor(low_name='low_kappa', high_name='high_kappa',
+                                     n_steps_name='n_kappa')
+             )
     )
 
     symb_class = MKappaSymbolic
@@ -103,7 +106,6 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     # Geometry
     H = tr.DelegatesTo('cross_section_shape')
-    # b = tr.DelegatesTo('cross_section_shape')
 
     # Concrete
     E_ct = tr.DelegatesTo('matrix')
@@ -129,13 +131,24 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def _get_z_m(self):
         return np.linspace(0, self.H, self.n_m)
 
-    low_kappa = Float(-0.001, BC = True)
-    high_kappa = Float(0.001, BC = True)
-    n_kappa = Int(100, BC = True)
+    low_kappa = Float(-0.001, BC=True)
+    high_kappa = Float(0.001, BC=True)
+    n_kappa = Int(100, BC=True)
+
+    kappa_slider = Float(0)
+
+    idx = tr.Property(depends_on='kappa_slider')
+
+    @tr.cached_property
+    def _get_idx(self):
+        ks = self.kappa_slider
+        idx = np.argmax(ks <= self.kappa_t)
+        return idx
 
     kappa_t = tr.Property(tr.Array(np.float_), depends_on='+BC')
     '''Curvature values to for which the bending moment must be found
     '''
+
     @tr.cached_property
     def _get_kappa_t(self):
         return np.linspace(self.low_kappa, self.high_kappa, self.n_kappa)
@@ -166,27 +179,32 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     # SOLVER: Get eps_bot to render zero force
 
-    eps_bot_t = tr.Property()
+    eps_bot_t = tr.Property(depends_on='+BC')
     r'''Resolve the tensile strain to get zero normal force for the prescribed curvature'''
 
+    @tr.cached_property
     def _get_eps_bot_t(self):
+        print('Solve for eps_bot_t')
         res = root(lambda eps_bot_t: self.get_N_t(self.kappa_t, eps_bot_t),
                    0.0000001 + np.zeros_like(self.kappa_t), tol=1e-6)
         return res.x
 
     # POSTPROCESSING
 
-    kappa_cr = tr.Property()
+    kappa_cr = tr.Property(depends_on='+BC')
     '''Curvature at which a critical strain is attained at the eps_bot'''
+
+    @tr.cached_property
     def _get_kappa_cr(self):
         res = root(lambda kappa: self.get_N_t(kappa, self.eps_cr),
                    0.0000001 + np.zeros_like(self.eps_cr), tol=1e-10)
         return res.x
 
-    # Bending moment
+    M_s_t = tr.Property(depends_on='+BC')
+    '''Bending moment (steel)
+    '''
 
-    M_s_t = tr.Property()
-
+    @tr.cached_property
     def _get_M_s_t(self):
         eps_z_tj = self.symb.get_eps_z(
             self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis],
@@ -197,8 +215,11 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         )
         return -np.einsum('j,tj,j->t', self.A_j, sig_z_tj, self.z_j)
 
-    M_c_t = tr.Property()
+    M_c_t = tr.Property(depends_on='+BC')
+    '''Bending moment (concrete)
+    '''
 
+    @tr.cached_property
     def _get_M_c_t(self):
         z_tm = self.z_m[np.newaxis, :]
         b_z_m = self.cross_section_shape.get_b(z_tm)
@@ -207,32 +228,47 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         )
         return -np.trapz(N_z_tm * z_tm, x=z_tm, axis=-1)
 
-    M_t = tr.Property()
+    M_t = tr.Property(depends_on='+BC')
+    '''Bending moment
+    '''
 
+    @tr.cached_property
     def _get_M_t(self):
         return self.M_c_t + self.M_s_t
 
-    N_s_tj = tr.Property()
+    N_s_tj = tr.Property(depends_on='+BC')
+    '''Normal forces (steel)
+    '''
 
+    @tr.cached_property
     def _get_N_s_tj(self):
         return self.get_N_s_tj(self.kappa_t, self.eps_bot_t)
 
-    eps_tm = tr.Property()
+    eps_tm = tr.Property(depends_on='+BC')
+    '''strain profiles
+    '''
 
+    @tr.cached_property
     def _get_eps_tm(self):
-        return self.get_eps_z(self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis], self.z_m[np.newaxis, :])
+        return self.get_eps_z(self.kappa_t[:, np.newaxis],
+                              self.eps_bot_t[:, np.newaxis], self.z_m[np.newaxis, :])
 
-    sig_tm = tr.Property()
+    sig_tm = tr.Property(depends_on='+BC')
+    '''strain profiles
+    '''
 
+    @tr.cached_property
     def _get_sig_tm(self):
         return self.symb.get_sig_c_z(
-            self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis],self.z_m[np.newaxis, :]
+            self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis],
+            self.z_m[np.newaxis, :]
         )
 
-    idx = Int(0)
-
     M_norm = tr.Property()
+    '''
+    '''
 
+    @tr.cached_property
     def _get_M_norm(self):
         # Section modulus @TODO optimize W for var b
         W = (self.b * self.H ** 2) / 6
@@ -244,28 +280,43 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def _get_kappa_norm(self):
         return self.kappa_cr
 
-    M_kappa_data = tr.Property()
-    def _get_M_kappa_data(self):
+    inv_M_kappa = tr.Property(depends_on='+BC')
+    '''Return the inverted data points
+    '''
+    @tr.cached_property
+    def _get_inv_M_kappa(self):
         """cut off the descending tails"""
-        
         M_t = self.M_t
         I_max = np.argmax(M_t)
         I_min = np.argmin(M_t)
-        M_I = self.M_t[I_min:I_max+1]
-        kappa_I = self.kappa_t[I_min:I_max+1]
+        M_I = self.M_t[I_min:I_max + 1]
+        kappa_I = self.kappa_t[I_min:I_max + 1]
+        # find the index corresponding to zero kappa
+        idx = np.argmax(0 <= self.kappa_t)
+        # and modify the values such that they the
+        # Values of moment are non-descending
+        M_plus = M_I[idx:]
+        M_diff = M_plus[:, np.newaxis] - M_plus[np.newaxis,:]
+        n_ij = len(M_plus)
+        ij = np.mgrid[0:n_ij:1, 0:n_ij:1]
+        M_diff[np.where(ij[1] >= ij[0])] = 0
+        i_x = np.argmin(M_diff, axis=1)
+        M_I[idx:] = M_plus[i_x]
         return M_I, kappa_I
 
     """ get_kappa from mkappa_.py"""
-#         I_M = np.where(self.M_t[1:] - self.M_t[:-1] > 0)
-#         M_I = self.M_t[I_M]
-#         kappa_I = self.kappa_t[I_M]
-#         return M_I, kappa_I
 
-    def get_kappa(self, M):
-        M_I, kappa_I = self.M_kappa_data
-        return np.interp(M, M_I, kappa_I)
+    #         I_M = np.where(self.M_t[1:] - self.M_t[:-1] > 0)
+    #         M_I = self.M_t[I_M]
+    #         kappa_I = self.kappa_t[I_M]
+    #         return M_I, kappa_I
+
+    def get_kappa_M(self, M):
+        M_I, kappa_I = self.inv_M_kappa
+        return np.interp(M, M_I / self.M_scale, kappa_I)
 
     def plot_norm(self, ax1, ax2):
+        print('plot norm')
         idx = self.idx
         ax1.plot(self.kappa_t / self.kappa_norm, self.M_t / self.M_norm)
         ax1.plot(self.kappa_t[idx] / self.kappa_norm, self.M_t[idx] / self.M_norm, marker='o')
@@ -283,8 +334,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def plot(self, ax1, ax2, ax22, ax3):
         idx = self.idx
         ax1.plot(self.kappa_t, self.M_t / self.M_scale)
-        ax1.set_ylabel('Moment [kN.m]')
-        ax1.set_xlabel('Curvature [$m^{-1}$]')
+        ax1.set_ylabel('Moment [kNm]')
+        ax1.set_xlabel('Curvature [mm$^{-1}$]')
         ax1.plot(self.kappa_t[idx], self.M_t[idx] / self.M_scale, marker='o')
         ax2.barh(self.z_j, self.N_s_tj[idx, :], height=6, color='red', align='center')
         # ax2.plot(self.N_s_tj[idx, :], self.z_j, color='red')
@@ -297,13 +348,16 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         ax22.fill_betweenx(self.z_m, self.sig_tm[idx, :], 0, alpha=0.1)
         mpl_align_xaxis(ax2, ax22)
 
-        ax3.plot(*self.M_kappa_data)
+        M, kappa = self.inv_M_kappa
+        ax3.plot(M / self.M_scale, kappa)
+        ax3.set_xlabel('Momen [kNm]')
+        ax3.set_ylabel('Curvature[mm$^{-1}$]')
 
-    def subplots(self, fig):
-        ax1, ax2, ax3 = fig.subplots(1,3)
+    @staticmethod
+    def subplots(fig):
+        ax1, ax2, ax3 = fig.subplots(1, 3)
         ax22 = ax2.twiny()
         return ax1, ax2, ax22, ax3
 
     def update_plot(self, axes):
         self.plot(*axes)
-

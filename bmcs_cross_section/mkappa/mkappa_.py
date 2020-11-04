@@ -321,30 +321,3 @@ class MKappa(InteractiveModel):
     def update_plot(self, axes):
         self.plot(*axes)
 
-if __name__ == '__main__':
-    mc = MKappa(idx=25, n_m=100)
-    print(mc.N_s_tj)
-    if False:
-        # If plot_norm is used, use the following:
-        # mc.kappa_range = (0, mc.kappa_cr * 100, 100)
-        mc.kappa_range = (-0.00002, 0.00002, 100)
-
-        # Plotting
-        fig, ((ax1, ax2)) = plt.subplots(1, 2, figsize=(10, 5))
-        mc.plot(ax1, ax2)
-        plt.show()
-
-    # Test getting kappa by providing Moment values
-    if False:
-        M_range = np.linspace(-40, 70, 100)
-        kappa = mc.get_kappa(M_range * 1e+6)
-        print(kappa)
-
-        fig, ((ax1, ax2)) = plt.subplots(1, 2, figsize=(10, 5))
-        mc.plot(ax1, ax2)
-        plt.show()
-
-        # Plotting
-        fig, ax1 = plt.subplots(1, 1, figsize=(10, 5))
-        plt.plot(M_range, kappa)
-        plt.show()

@@ -6,7 +6,7 @@ from bmcs_utils.api import \
 class Reinforcement(InteractiveModel):
     name = 'Reinforcement'
 
-    # TODO->Saeed: prepare the varibles for InteractiveModel (ipw_view and so on...)
+    # TODO->Saeed: prepare the variables for InteractiveModel (ipw_view and so on...)
 
     z_j = tr.Array(np.float_, value=[50])
     """z positions of reinforcement layers"""
@@ -74,8 +74,12 @@ class Matrix(InteractiveModel):
 
     ipw_view = View(
         Item('E_ct', latex='E_{ct} [N/mm^2]'),
-        Item('E_cc', latex='E_{cc} [N/mm^2]')
-        # TODO->Saeed: complete these
+        Item('E_cc', latex='E_{cc} [N/mm^2]'),
+        Item('eps_cr'),
+        Item('eps_cy'),
+        Item('eps_cu'),
+        Item('eps_tu'),
+        Item('mu')
     )
 
     def update_plot(self, axes):
