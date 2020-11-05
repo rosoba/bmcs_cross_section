@@ -304,16 +304,9 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         M_I[idx:] = M_plus[i_x]
         return M_I, kappa_I
 
-    """ get_kappa from mkappa_.py"""
-
-    #         I_M = np.where(self.M_t[1:] - self.M_t[:-1] > 0)
-    #         M_I = self.M_t[I_M]
-    #         kappa_I = self.kappa_t[I_M]
-    #         return M_I, kappa_I
-
     def get_kappa_M(self, M):
         M_I, kappa_I = self.inv_M_kappa
-        return np.interp(M, M_I / self.M_scale, kappa_I)
+        return np.interp(M, M_I, kappa_I)
 
     def plot_norm(self, ax1, ax2):
         print('plot norm')
