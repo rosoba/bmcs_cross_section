@@ -20,6 +20,14 @@ class Reinforcement(InteractiveModel):
     eps_sy_j = tr.Array(np.float_, value=[500. / 210000.])
     """Steel yield strain"""
 
+    ipw_view = View(
+
+        Item('z_j', latex='z_{j} \mathrm{[mm]}'),
+        Item('x_j', latex='x_{j} \mathrm{[mm]}'),
+        Item('A_j', latex='A_{j} \mathrm{[mm^2]}'),
+        Item('E_j', latex='E_{j} \mathrm{[MPa]}'),
+        Item('eps_sy_j', latex='eps_{sy_j} \mathrm{[-]}'),
+    )
 
 class Fabric(Reinforcement):
     """Reinforcement with a grid structure
@@ -45,7 +53,6 @@ class Fabric(Reinforcement):
 
 class Bar(Reinforcement):
     """" pass """
-
 
 class Matrix(InteractiveModel):
     name = 'Matrix'

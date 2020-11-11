@@ -1,6 +1,6 @@
 
 from .cs_layout import CrossSectionLayout
-from .cs_shape import Rectangle, ICrossSectionShape
+from .cs_shape import RectangleCS, ICrossSectionShape
 from bmcs_utils.api import InteractiveModel, Item, View
 import traits.api as tr
 
@@ -14,7 +14,7 @@ class CSDesign(InteractiveModel):
     cross_section_shape = tr.Instance(ICrossSectionShape)
 
     def _cross_section_shape_default(self):
-        return Rectangle()
+        return RectangleCS()
 
     name = 'Cross section'
 
