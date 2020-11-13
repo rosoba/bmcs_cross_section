@@ -3,6 +3,7 @@ import traits.api as tr
 from bmcs_utils.api import \
     InteractiveModel, Item, View, Float, Int
 
+
 class Reinforcement(InteractiveModel):
     name = 'Reinforcement'
 
@@ -96,19 +97,38 @@ class Matrix(InteractiveModel):
 class CrossSectionLayout(InteractiveModel):
     name = 'CrossSectionLayout'
 
-    matrix = tr.Instance(Matrix, ())
-    reinforcement = tr.Instance(Reinforcement, ())
-
     beam_design = tr.WeakRef
 
+
+    # print = Info.trait_get(Info.trait_names())
+
+        # = self.trait_names()
+        # print(self.trait_get(trait_names))
+
+    matrix = tr.Instance(Matrix, ())
+    reinforcement = tr.Instance(Reinforcement, ())
+    fabric = tr.Instance(Fabric, ())
+    bar = tr.Instance(Bar, ())
+
+    def get_shape(self):
+        rec = tr.Instance(self.beam_design.cross_section_shape, ())
+
+    def get_reinf(self):
+        pass
+
     def get_comp_E(self):
+
+        # give him a B value
+        B = 100
         H = self.beam_design.cross_section_shape.H
-        A_composite = self.b * H
-        n_rovings = self.width / self.spacing  # width or B??
-        A_layer = n_rovings * self.A_roving
-        A_carbon = self.n_layers * A_layer
+        # A_composite = B * H
+        A_composite = B * H
+
+        n_rovings = self.fabric.width / self.fabric.spacing  # width or B??
+        A_layer = n_rovings * self.fabric.A_roving
+        A_carbon = self.fabric.n_layers * A_layer
         A_concrete = A_composite - A_carbon
-        E_comp = (self.E_carbon * A_carbon + self.E_con * A_concrete) / (A_composite)
+        E_comp = (self.fabric.E_carbon * A_carbon + self.matrix.E_cc * A_concrete) / (A_composite)
         return E_comp
 
     ipw_view = View(
@@ -124,12 +144,14 @@ class CrossSectionLayout(InteractiveModel):
         #  and with a width that is relative to A_j (get z_j and A_j values from 'reinforcement' class variable)
         #  (just fix, generalize and improve the following)
         H = int(self.beam_design.cross_section_shape.H)
+
         max_B = np.max(self.beam_design.cross_section_shape.get_b(np.linspace(0, 100, H)))
         z1 = self.reinforcement.z_j[0]
-        ax.plot([0, max_B], [z1, z1], color='r', linewidth=5)
+        ax.plot([-max_B/2, max_B/2], [z1, z1], color='r', linewidth=5)
 
 
         # ax.plot([self.b / 2 - self.width / 2, self.b / 2 + self.width / 2], [self.f_h, self.f_h], color='Blue',
         #         linewidth=self.n_layers * self.thickness)
-        # ax.annotate('E_composite = {} GPa'.format(np.round(self.get_comp_E() / 1000), 0),
-        #             xy=(self.b / 10, self.f_h * 1.1), color='white')
+        ax.annotate('E_composite = {} GPa'.format(np.round(self.get_comp_E() / 1000), 0),
+                    xy=(-H / 2 * 0.8, (H / 2 + H / 2) * 0.8), color='blue')
+
