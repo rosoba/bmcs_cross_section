@@ -184,7 +184,6 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     @tr.cached_property
     def _get_eps_bot_t(self):
-        print('Solve for eps_bot_t')
         res = root(lambda eps_bot_t: self.get_N_t(self.kappa_t, eps_bot_t),
                    0.0000001 + np.zeros_like(self.kappa_t), tol=1e-6)
         return res.x
