@@ -56,7 +56,7 @@ class CSDesign(InteractiveModel):
     def _cross_section_layout_default(self):
         return CrossSectionLayout(beam_design=self)
 
-    name = 'Cross section Design'
+    name = 'Cross Section Design'
 
     H = tr.DelegatesTo('cross_section_shape')
 
@@ -98,6 +98,3 @@ class CSDesign(InteractiveModel):
     def update_plot(self, ax):
         self.cross_section_shape.update_plot(ax)
         self.cross_section_layout.update_plot(ax)
-        print('update_plot called')
-        trait_names = self.trait_names()
-        print(self.trait_get(trait_names))

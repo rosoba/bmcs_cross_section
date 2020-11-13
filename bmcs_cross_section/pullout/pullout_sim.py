@@ -755,8 +755,8 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
         t = self.sim.tline.val
         self.plot_geo(ax_geo, t)
         self.hist.plot_Pw(ax_Pw, t)
-        self.plot_sf(ax_sf,t)
-        self.hist.plot_dG_t(ax_dissip, t)
+#        self.plot_sf(ax_sf,t)
+#        self.hist.plot_dG_t(ax_dissip, t)
 
     def get_window(self):
         Pw = self.hist.plt('plot_Pw', label='pullout curve')
