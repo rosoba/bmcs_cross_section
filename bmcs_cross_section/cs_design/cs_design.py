@@ -44,7 +44,8 @@ class Info(InteractiveModel):
         return fig.subplots(1, 1)
 
     def update_plot(self, ax):
-    # @TODO[SR]: If team like it, print the version, logo, some initial information about the app if it worked with the layout
+    # @TODO[SR]: If team like it, print the version, logo,
+    #            some initial information about the app if it worked with the layout
         print('update_plot called')
         trait_names = self.trait_names()
         print(self.trait_get(trait_names))
@@ -59,6 +60,12 @@ class CSDesign(InteractiveModel):
     name = 'Cross Section Design'
 
     H = tr.DelegatesTo('cross_section_shape')
+
+    _GEO = tr.Event
+    @tr.on_trait_change('cross_section_layout, +GEO, cross_section_layout._GEO')
+    def _reset_GEO(self):
+        self._GEO = True
+
 
     # Cross section shape options
     Rectangle = Bool(False)

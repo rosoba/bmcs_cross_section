@@ -36,7 +36,8 @@ import traits.api as tr
 
 
 
-class PulloutHist(Hist, Vis2D):
+class PulloutHist(Hist, bu.InteractiveModel, Vis2D):
+    name = 'History'
 
     record_traits = tr.List(
         ['P', 'w_0', 'w_L', ]
@@ -75,13 +76,91 @@ class PulloutHist(Hist, Vis2D):
         w_0 = U_ti[:n_t, f_dof]
         return P, w_0, w_L
 
+    def get_u_p(self):
+        '''Displacement field
+        '''
+
+        idx = self.get_time_idx(self.t_slider)
+        U = self.U_t[idx]
+        state = self.tstep_source.fe_domain[0]
+        dof_Epia = state.xdomain.o_Epia
+        fets = state.xdomain.fets
+        u_Epia = U[dof_Epia]
+        N_mi = fets.N_mi
+        u_Emap = np.einsum('mi,Epia->Emap', N_mi, u_Epia)
+        return u_Emap.reshape(-1, 2)
+
+    def get_eps_p(self):
+        '''Epsilon in the components'''
+        idx = self.get_time_idx(self.t_slider)
+        eps_Ems = self.get_eps_tEms(idx)
+        return eps_Ems[..., (0, 2)].reshape(-1, 2)
+
+    def get_s(self):
+        '''Slip between the two material phases'''
+        idx = self.get_time_idx(self.t_slider)
+        eps_Ems = self.get_eps_tEms(idx)
+        return eps_Ems[..., 1].flatten()
+
+    def get_sig_p(self):
+        '''Epsilon in the components'''
+        idx = self.get_time_idx(self.t_slider)
+        sig_Ems = self.get_sig_tEms(idx)
+        return sig_Ems[..., (0, 2)].reshape(-1, 2)
+
+    def get_sf(self):
+        '''Get the shear flow in the interface
+        '''
+        idx = self.get_time_idx(self.t_slider)
+        sig_Ems = self.get_sig_tEms(idx)
+        print(sig_Ems.shape)
+        return sig_Ems[..., 1].flatten()
+
+    def get_eps_tEms(self, idx = slice(None)):
+        '''Epsilon in the components
+        '''
+        txdomain = self.tstep_source.fe_domain[0]
+        return txdomain.xdomain.map_U_to_field(self.U_t[idx])
+
+    def get_sig_tEms(self, idx = slice(None)):
+        '''Get stresses in the components
+        '''
+        reduce_dim = False
+        if isinstance(idx, int):
+            reduce_dim = True
+            if idx == -1:
+                idx_max = None
+            else:
+                idx_max = idx + 1
+            idx = slice(idx, idx_max)
+        txdomain = self.tstep_source.fe_domain[0]
+        eps_tEms = self.get_eps_tEms(idx)
+        t_n1 = self.t[idx]
+        keys = self.Eps_t[0,0].keys()
+        Eps_t = self.Eps_t[idx,0]
+        if reduce_dim:
+            eps_tEms = eps_tEms[0,...]
+            Eps_Dt = Eps_t[0]
+        else:
+            Eps_Dt = {
+                key: np.array([Eps[key] for i, Eps in enumerate(Eps_t)], dtype=np.float_)
+                for key in keys
+            }
+        print('eps', eps_tEms.shape)
+        for key, Eps_D in Eps_Dt.items():
+            print('eps', key, Eps_D.shape)
+        sig_tEms, _ = txdomain.tmodel.get_corr_pred(eps_tEms, t_n1, **Eps_Dt)
+        print('sig', sig_tEms.shape)
+        # if reduce_dim:
+        #     sig_tEms = sig_tEms[0,...]
+        return sig_tEms
+
     def get_U_bar_t(self):
         xdomain = self.tstep_source.fe_domain[0].xdomain
         fets = xdomain.fets
         A = xdomain.A
-        t = self.t
-        eps_tEms = self.tstep_source.get_eps_tEms(t)
-        sig_tEms = self.tstep_source.get_sig_tEms(t)
+        eps_tEms = self.get_eps_tEms(slice(0,None))
+        sig_tEms = self.get_sig_tEms(slice(0,None))
 
         w_ip = fets.ip_weights
         J_det = xdomain.det_J_Em
@@ -100,19 +179,14 @@ class PulloutHist(Hist, Vis2D):
         U_bar_t = self.get_U_bar_t()
         W_t = self.get_W_t()
         G = W_t[:n_t] - U_bar_t[:n_t]
-#         G0 = G[:-1]
-#         G1 = G[1:]
-#         dG = np.hstack([0, G1 - G0])
-#         return dG
         if len(t) < 2:
             return np.zeros_like(t)
-
         tck = ip.splrep(t, G, s=0, k=1)
         return ip.splev(t, tck, der=1)
 
     show_legend = Bool(True, auto_set=False, enter_set=True)
 
-    def plot_Pw(self, ax, vot, *args, **kw):
+    def plot_Pw(self, ax, *args, **kw):
         P_t, w_0_t, w_L_t = self.get_Pw_t()
         ymin, ymax = np.min(P_t), np.max(P_t)
         L_y = ymax - ymin
@@ -133,17 +207,17 @@ class PulloutHist(Hist, Vis2D):
         ax.set_xlabel('pull-out slip w [mm]')
         if self.show_legend:
             ax.legend(loc=4)
-        self.plot_marker(ax, vot)
+        self.plot_marker(ax)
 
-    def plot_marker(self, ax, vot):
+    def plot_marker(self, ax):
         P_t, w_0_t, w_L_t = self.get_Pw_t()
-        idx = self.get_time_idx(vot)
+        idx = self.get_time_idx(self.t_slider)
         P, w = P_t[idx], w_L_t[idx]
         ax.plot([w], [P], 'o', color='black', markersize=10)
         P, w = P_t[idx], w_0_t[idx]
         ax.plot([w], [P], 'o', color='magenta', markersize=10)
 
-    def plot_G_t(self, ax, vot,
+    def plot_G_t(self, ax,
                  label_U='U(t)', label_W='W(t)',
                  color_U='blue', color_W='red'):
 
@@ -160,18 +234,149 @@ class PulloutHist(Hist, Vis2D):
         ax.set_xlabel('time [-]')
         ax.legend()
 
-    def plot_dG_t(self, ax, vot, *args, **kw):
+    def plot_dG_t(self, ax, *args, **kw):
         t = self.t
         dG = self.get_dG_t()
         ax.plot(t, dG, color='black', label='dG/dt')
         ax.fill_between(t, 0, dG, facecolor='blue', alpha=0.05)
         ax.legend()
 
-    show_data = Button()
+    # =========================================================================
+    # Plot functions
+    # =========================================================================
+    def plot_geo(self, ax):
+        u_p = self.get_u_p().T
 
-    def _show_data_fired(self):
-        show_data = DataSheet(data=self.U_t)
-        show_data.edit_traits()
+        f_dof = self.tstep_source.free_end_dof
+        w_L_b = u_p.flatten()[f_dof]
+        c_dof = self.tstep_source.controlled_dof
+        w = u_p.flatten()[c_dof]
+
+        A_m = self.tstep_source.cross_section.A_m
+        A_f = self.tstep_source.cross_section.A_f
+        h = A_m
+        d = h * 0.1  # A_f / A_m
+
+        L_b = self.tstep_source.geometry.L_x
+        x_C = np.array([[-L_b, 0], [0, 0], [0, h], [-L_b, h]], dtype=np.float_)
+        ax.fill(*x_C.T, color='gray', alpha=0.3)
+
+        f_top = h / 2 + d / 2
+        f_bot = h / 2 - d / 2
+        ax.set_xlim(xmin=-1.05 * L_b,
+                    xmax=max(0.05 * L_b, 1.1 * self.tstep_source.w_max))
+
+        line_F, = ax.fill([], [], color='black', alpha=0.8)
+        x_F = np.array([[-L_b + w_L_b, f_bot], [w, f_bot],
+                        [w, f_top], [-L_b + w_L_b, f_top]], dtype=np.float_)
+        line_F.set_xy(x_F)
+        x_F0 = np.array([[-L_b, f_bot], [-L_b + w_L_b, f_bot],
+                         [-L_b + w_L_b, f_top], [-L_b, f_top]], dtype=np.float_)
+        line_F0, = ax.fill([], [], color='white', alpha=1)
+        line_F0.set_xy(x_F0)
+
+    def plot_u_p(self, ax, label_m='matrix', label_f='reinf'):
+        X_M = self.tstep_source.X_M
+        L = self.tstep_source.geometry.L_x
+        u_p = self.get_u_p().T
+        ax.plot(X_M, u_p[0], linewidth=2, color='blue', label=label_m)
+        ax.fill_between(X_M, u_p[0], 0, facecolor='blue', alpha=0.2)
+        ax.plot(X_M, u_p[1], linewidth=2, color='orange', label=label_f)
+        ax.fill_between(X_M, u_p[1], 0, facecolor='orange', alpha=0.2)
+        ax.plot([0, L], [0, 0], color='black')
+        ax.set_ylabel('displacement')
+        ax.set_xlabel('bond length')
+        ax.legend(loc=2)
+        return np.min(u_p), np.max(u_p)
+
+    def plot_eps_p(self, ax, label_m='matrix', label_f='reinf'):
+        X_M = self.tstep_source.X_M
+        L = self.tstep_source.geometry.L_x
+        eps_p = self.get_eps_p().T
+        ax.plot(X_M, eps_p[0], linewidth=2, color='blue', label=label_m)
+        ax.fill_between(X_M, 0, eps_p[0], facecolor='blue', alpha=0.2)
+        ax.plot(X_M, eps_p[1], linewidth=2, color='orange', label=label_f)
+        ax.fill_between(X_M, 0, eps_p[1], facecolor='orange', alpha=0.2)
+        ax.plot([0, L], [0, 0], color='black')
+        ax.set_ylabel('strain')
+        ax.set_xlabel('bond length')
+        return np.min(eps_p), np.max(eps_p)
+
+    def plot_sig_p(self, ax):
+        X_M = self.tstep_source.X_M
+        sig_p = self.get_sig_p().T
+        #        A_m = self.cross_section.A_m
+        #        A_f = self.cross_section.A_f
+        L = self.tstep_source.geometry.L_x
+        F_m = sig_p[0]
+        F_f = sig_p[1]
+        ax.plot(X_M, F_m, linewidth=2, color='blue', )
+        ax.fill_between(X_M, F_m, 0, facecolor='blue', alpha=0.1)
+        ax.plot(X_M, F_f, linewidth=2, color='orange')
+        ax.fill_between(X_M, F_f, 0, facecolor='orange', alpha=0.1)
+        ax.plot([0, L], [0, 0], color='black', lw=0.5)
+        ax.set_ylabel('stress [MPa]')
+        ax.set_xlabel('bond length')
+        F_min = min(np.min(F_m), np.min(F_f))
+        F_max = max(np.max(F_m), np.max(F_f))
+        return F_min, F_max
+
+    def plot_s(self, ax):
+        X_J = self.tstep_source.X_M
+        s = self.get_s()
+        color = 'green'
+        ax.fill_between(X_J, 0, s, facecolor=color, alpha=0.3)
+        ax.plot(X_J, s, linewidth=2, color=color)
+        ax.set_ylabel('slip')
+        ax.set_xlabel('bond length')
+        return np.min(s), np.max(s)
+
+    def plot_sf(self, ax):
+        X_J = self.tstep_source.X_M
+        sf = self.get_sf()
+        color = 'red'
+        ax.fill_between(X_J, 0, sf, facecolor=color, alpha=0.2)
+        ax.plot(X_J, sf, linewidth=2, color=color)
+        ax.set_ylabel('shear flow')
+        ax.set_xlabel('bond length')
+        return np.min(sf), np.max(sf)
+
+    t_slider = bu.Float(0)
+    t_anim = bu.Float(0)
+    t_max = tr.Property()
+    def _get_t_max(self):
+        return self.t[-1]
+
+    ipw_view = bu.View(
+        # bu.Item('t_anim', editor=bu.ProgressEditor(
+        #     run_method='run',
+        #     reset_method='reset',
+        #     interrupt_var='interrupt',
+        #     time_var='t_slider',
+        #     time_max='t_max',
+        # )),
+        bu.Item('t_slider', editor=bu.FloatRangeEditor(
+            low=0,
+            high_name='t_max',
+        )),
+    )
+
+    def subplots(self, fig):
+        (ax_geo, ax_Pw), (ax_sf, ax_G_t) = fig.subplots(2, 2)
+        ax_sig = ax_sf.twinx()
+        ax_dG_t = ax_G_t.twinx()
+        return ax_geo, ax_Pw, ax_sig, ax_sf, ax_G_t, ax_dG_t
+
+    def update_plot(self, axes):
+        if len(self.U_t) == 0:
+            return
+        ax_geo, ax_Pw, ax_sig, ax_sf, ax_G_t, ax_dG_t = axes
+        self.plot_geo(ax_geo)
+        self.plot_Pw(ax_Pw)
+        self.plot_sig_p(ax_sig)
+        self.plot_sf(ax_sf)
+        self.plot_G_t(ax_G_t)
+        self.plot_dG_t(ax_dG_t)
 
 
 class CrossSection(BMCSLeafNode, RInputRecord):
@@ -265,7 +470,7 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
             self.mats_eval,
             self.cross_section,
             self.geometry,
-            self.sim
+#            self.sim
         ]
 
     def _update_node_list(self):
@@ -274,23 +479,14 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
             self.mats_eval,
             self.cross_section,
             self.geometry,
-            self.sim
+#            self.sim
         ]
 
     def run(self):
         self.sim.run()
 
-    def stop(self):
-        self.sim.stop()
-
-    # todo: notification of progress - simulator is sending
-    #       notifications to ui trait
-    #       however a better approach would be to share
-    #       a persistent storage - the viz2d and viz3d objects
-    #       have the storage already prepared. The monitoring
-    #       of calculation should be done using the the time
-    #       distancing. For simple models, like deflection no
-    #       the refresh value would access that
+    def reset(self):
+        self.sim.reset()
 
     t = tr.Property()
     def _get_t(self):
@@ -304,15 +500,23 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
     def _set_t_max(self, value):
         self.sim.t_max = value
 
+    interrupt = tr.Property()
+    def _get_interrupt(self):
+        return self.sim.interrupt
+    def _set_interrupt(self, value):
+        self.sim.interrupt = value
+
     ipw_view = bu.View(
+        bu.Item('t', editor=bu.ProgressEditor(
+            run_method='run',
+            reset_method='reset',
+            interrupt_var='interrupt',
+            time_var='t',
+            time_max='t_max',
+        )),
         bu.Item('w_max'),
         bu.Item('n_e_x'),
-        simulator = 'run',
-        time_variable = 't',
-        time_max = 't_max',
-        reset_simulator = 'stop'
     )
-
 
     tree_view = View(
         Group(
@@ -565,60 +769,6 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
         f_dof = self.free_end_dof
         return self.U_n[f_dof]
 
-    def get_u_p(self, vot):
-        '''Displacement field
-        '''
-        idx = self.hist.get_time_idx(vot)
-        U = self.hist.U_t[idx]
-        state = self.fe_domain[0]
-        dof_Epia = state.xdomain.o_Epia
-        fets = state.xdomain.fets
-        u_Epia = U[dof_Epia]
-        N_mi = fets.N_mi
-        u_Emap = np.einsum('mi,Epia->Emap', N_mi, u_Epia)
-        return u_Emap.reshape(-1, 2)
-
-    def get_eps_tEms(self, idx = slice(None)):
-        '''Epsilon in the components
-        '''
-        txdomain = self.fe_domain[0]
-        return txdomain.xdomain.map_U_to_field(self.hist.U_t[idx])
-
-    def get_sig_tEms(self, idx = slice(None)):
-        '''Get stresses in the components
-        '''
-        txdomain = self.fe_domain[0]
-        eps_tEms = self.get_eps_tEms(idx)
-        t_n1 = self.hist.t[idx]
-        Eps_t = self.hist.Eps_t[0,idx,...]
-        Eps_Dt = {
-            key: np.array([Eps[key] for i, Eps in enumerate(Eps_t)], dtype=np.float_)
-            for key in Eps_t[0].keys()
-        }
-        sig_tEms, _ = txdomain.tmodel.get_corr_pred(eps_tEms, t_n1, **Eps_Dt)
-        return sig_tEms
-
-    def get_eps_p(self, vot):
-        '''Epsilon in the components'''
-        eps_Ems = self.get_eps_Ems(vot)
-        return eps_Ems[..., (0, 2)].reshape(-1, 2)
-
-    def get_s(self, vot):
-        '''Slip between the two material phases'''
-        eps_Ems = self.get_eps_Ems(vot)
-        return eps_Ems[..., 1].flatten()
-
-    def get_sig_p(self, vot):
-        '''Epsilon in the components'''
-        sig_Ems = self.get_sig_Ems(vot)
-        return sig_Ems[..., (0, 2)].reshape(-1, 2)
-
-    def get_sf(self, vot):
-        '''Get the shear flow in the interface
-        '''
-        sig_Ems = self.get_sig_Ems(vot)
-        return sig_Ems[..., 1].flatten()
-
     def get_shear_integ(self):
         sf_t_Em = np.array(self.tloop.sf_Em_record)
         w_ip = self.fets_eval.ip_weights
@@ -626,106 +776,6 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
         P_b = self.cross_section.P_b
         shear_integ = np.einsum('tEm,m,em->t', sf_t_Em, w_ip, J_det) * P_b
         return shear_integ
-
-    #=========================================================================
-    # Plot functions
-    #=========================================================================
-    def plot_geo(self, ax, vot):
-        u_p = self.get_u_p(vot).T
-
-        f_dof = self.free_end_dof
-        w_L_b = u_p.flatten()[f_dof]
-        c_dof = self.controlled_dof
-        w = u_p.flatten()[c_dof]
-
-        A_m = self.cross_section.A_m
-        A_f = self.cross_section.A_f
-        h = A_m
-        d = h * 0.1  # A_f / A_m
-
-        L_b = self.geometry.L_x
-        x_C = np.array([[-L_b, 0], [0, 0], [0, h], [-L_b, h]], dtype=np.float_)
-        ax.fill(*x_C.T, color='gray', alpha=0.3)
-
-        f_top = h / 2 + d / 2
-        f_bot = h / 2 - d / 2
-        ax.set_xlim(xmin=-1.05 * L_b,
-                    xmax=max(0.05 * L_b, 1.1 * self.w_max))
-
-        line_F, = ax.fill([], [], color='black', alpha=0.8)
-        x_F = np.array([[-L_b + w_L_b, f_bot], [w, f_bot],
-                        [w, f_top], [-L_b + w_L_b, f_top]], dtype=np.float_)
-        line_F.set_xy(x_F)
-        x_F0 = np.array([[-L_b, f_bot], [-L_b + w_L_b, f_bot],
-                         [-L_b + w_L_b, f_top], [-L_b, f_top]], dtype=np.float_)
-        line_F0, = ax.fill([], [], color='white', alpha=1)
-        line_F0.set_xy(x_F0)
-
-    def plot_u_p(self, ax, vot, label_m='matrix', label_f='reinf'):
-        X_M = self.X_M
-        L = self.geometry.L_x
-        u_p = self.get_u_p(vot).T
-        ax.plot(X_M, u_p[0], linewidth=2, color='blue', label=label_m)
-        ax.fill_between(X_M, u_p[0], 0, facecolor='blue', alpha=0.2)
-        ax.plot(X_M, u_p[1], linewidth=2, color='orange', label=label_f)
-        ax.fill_between(X_M, u_p[1], 0, facecolor='orange', alpha=0.2)
-        ax.plot([0, L], [0, 0], color='black')
-        ax.set_ylabel('displacement')
-        ax.set_xlabel('bond length')
-        ax.legend(loc=2)
-        return np.min(u_p), np.max(u_p)
-
-    def plot_eps_p(self, ax, vot, label_m='matrix', label_f='reinf'):
-        X_M = self.X_M
-        L = self.geometry.L_x
-        eps_p = self.get_eps_p(vot).T
-        ax.plot(X_M, eps_p[0], linewidth=2, color='blue', label=label_m)
-        ax.fill_between(X_M, 0, eps_p[0], facecolor='blue', alpha=0.2)
-        ax.plot(X_M, eps_p[1], linewidth=2, color='orange', label=label_f)
-        ax.fill_between(X_M, 0, eps_p[1], facecolor='orange', alpha=0.2)
-        ax.plot([0, L], [0, 0], color='black')
-        ax.set_ylabel('strain')
-        ax.set_xlabel('bond length')
-        return np.min(eps_p), np.max(eps_p)
-
-    def plot_sig_p(self, ax, vot):
-        X_M = self.X_M
-        sig_p = self.get_sig_p(vot).T
-#        A_m = self.cross_section.A_m
-#        A_f = self.cross_section.A_f
-        L = self.geometry.L_x
-        F_m = sig_p[0]
-        F_f = sig_p[1]
-        ax.plot(X_M, F_m, linewidth=2, color='blue', )
-        ax.fill_between(X_M, F_m, 0, facecolor='blue', alpha=0.1)
-        ax.plot(X_M, F_f, linewidth=2, color='orange')
-        ax.fill_between(X_M, F_f, 0, facecolor='orange', alpha=0.1)
-        ax.plot([0, L], [0, 0], color='black', lw=0.5)
-        ax.set_ylabel('stress [MPa]')
-        ax.set_xlabel('bond length')
-        F_min = min(np.min(F_m), np.min(F_f))
-        F_max = max(np.max(F_m), np.max(F_f))
-        return F_min, F_max
-
-    def plot_s(self, ax, vot):
-        X_J = self.X_M
-        s = self.get_s(vot)
-        color = 'green'
-        ax.fill_between(X_J, 0, s, facecolor=color, alpha=0.3)
-        ax.plot(X_J, s, linewidth=2, color=color)
-        ax.set_ylabel('slip')
-        ax.set_xlabel('bond length')
-        return np.min(s), np.max(s)
-
-    def plot_sf(self, ax, vot):
-        X_J = self.X_M
-        sf = self.get_sf(vot)
-        color = 'red'
-        ax.fill_between(X_J, 0, sf, facecolor=color, alpha=0.2)
-        ax.plot(X_J, sf, linewidth=2, color=color)
-        ax.set_ylabel('shear flow')
-        ax.set_xlabel('bond length')
-        return np.min(sf), np.max(sf)
 
     def plot_omega(self, ax, vot):
         X_J = self.X_J
@@ -745,18 +795,15 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
         ax.set_xlabel('slip')
 
     def subplots(self, fig):
-        (ax_geo, ax_Pw), (ax_sf, ax_dissip) = fig.subplots(2,2)
-        return ax_geo, ax_Pw, ax_sf, ax_dissip
+        ax_geo, ax_Pw = fig.subplots(1,2)
+        return ax_geo, ax_Pw
 
     def update_plot(self, axes):
         if len(self.hist.U_t) == 0:
             return
-        ax_geo, ax_Pw, ax_sf, ax_dissip = axes
-        t = self.sim.tline.val
-        self.plot_geo(ax_geo, t)
-        self.hist.plot_Pw(ax_Pw, t)
-#        self.plot_sf(ax_sf,t)
-#        self.hist.plot_dG_t(ax_dissip, t)
+        ax_geo, ax_Pw = axes
+        self.hist.plot_geo(ax_geo)
+        self.hist.plot_Pw(ax_Pw)
 
     def get_window(self):
         Pw = self.hist.plt('plot_Pw', label='pullout curve')
