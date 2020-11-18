@@ -54,11 +54,11 @@ class MKappaSymbolic(SymbExpr):
         (0, eps >= eps_tu)
     )
     # Stress over the cross section height
-    sig_c_z = sig_c_eps.subs(eps, eps_z)
-    # sig_c_z = sig_c_eps.subs(eps, eps_z_) # this was like this originally
+    # sig_c_z = sig_c_eps.subs(eps, eps_z)
+    sig_c_z_ = sig_c_eps.subs(eps, eps_z_) # this was like this originally
 
     # Substitute eps_top to get sig as a function of (kappa, eps_bot, z)
-    sig_c_z = sig_c_z.subs(eps_top_solved)
+    sig_c_z = sig_c_z_.subs(eps_top_solved)
 
     # Reinforcement constitutive law
     sig_s_eps = sp.Piecewise(
