@@ -18,9 +18,12 @@ class MKappaSymbolic(SymbExpr):
     # -------------------------------------------------------------------------
     # Symbolic derivation of expressions
     # -------------------------------------------------------------------------
-    kappa = sp.Symbol('kappa', real=True)
-    eps_top = sp.symbols('varepsilon_top', real=True)
-    eps_bot = sp.symbols('varepsilon_bot', real=True)
+    # kappa = sp.Symbol('kappa', real=True)
+    # eps_top = sp.symbols('varepsilon_top', real=True)
+    # eps_bot = sp.symbols('varepsilon_bot', real=True)
+    kappa = sp.Symbol('kappa', real=True, nonpositive=True)
+    eps_top = sp.symbols('varepsilon_top', real=True, nonpositive=True)
+    eps_bot = sp.symbols('varepsilon_bot', real=True, nonnegative=True)
     b, h, z = sp.symbols('b, h, z', nonnegative=True)
     eps_sy, E_s = sp.symbols('varepsilon_sy, E_s')
     eps = sp.Symbol('varepsilon', real=True)
@@ -54,7 +57,7 @@ class MKappaSymbolic(SymbExpr):
         (0, eps >= eps_tu)
     )
     # Stress over the cross section height
-    # sig_c_z = sig_c_eps.subs(eps, eps_z)
+    # sig_c_z_ = sig_c_eps.subs(eps, eps_z)
     sig_c_z_ = sig_c_eps.subs(eps, eps_z_) # this was like this originally
 
     # Substitute eps_top to get sig as a function of (kappa, eps_bot, z)

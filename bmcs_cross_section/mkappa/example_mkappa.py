@@ -29,7 +29,7 @@ def run_example_with_t_section_and_custom_params():
     h_w = 0.85 * H
     tshape = TShapeCS(H=H, B_w=b_w, B_f=b_f, H_w=h_w)
 
-    mc = MKappa()
+    mc = MKappa(n_kappa=100, n_m=100)
     mc.cross_section_shape = tshape
 
     # Material parameters [mm], [N/mm2]

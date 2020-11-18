@@ -38,8 +38,14 @@ class MKappaSymbolic(tr.HasStrictTraits):
                                                 nonnegative=True)
     eps_cy, eps_cu = sp.symbols(r'varepsilon_cy, varepsilon_cu', real=True, nonpositive=True)
     kappa = sp.Symbol('kappa', real=True, nonpositive=True)
-    eps_top = sp.symbols('varepsilon_top', real=True) # , nonpositive=True)
-    eps_bot = sp.symbols('varepsilon_bot', real=True) # , nonnegative=True)
+    eps_top = sp.symbols('varepsilon_top', real=True, nonpositive=True)
+    eps_bot = sp.symbols('varepsilon_bot', real=True, nonnegative=True)
+    # E_ct, E_cc, eps_cr, eps_tu, mu = sp.symbols(r'E_ct, E_cc, varepsilon_cr, varepsilon_tu, mu', real=True)
+    # eps_cy, eps_cu = sp.symbols(r'varepsilon_cy, varepsilon_cu', real=True)
+    # kappa = sp.Symbol('kappa', real=True)
+    # eps_top = sp.symbols('varepsilon_top', real=True)
+    # eps_bot = sp.symbols('varepsilon_bot', real=True)
+
     b, h, z = sp.symbols('b, h, z', nonnegative=True)
     eps_sy, E_s = sp.symbols('varepsilon_sy, E_s')
     eps = sp.Symbol('varepsilon', real=True)
@@ -128,7 +134,6 @@ class MKappaSymbolic(tr.HasStrictTraits):
 
     @tr.cached_property
     def _get_get_sig_c_z(self):
-        print(self.sig_c_z_lin.subs(self.model_data_mapping))
         return sp.lambdify((self.kappa, self.eps_bot, self.z), self.sig_c_z_lin.subs(self.model_data_mapping), 'numpy')
 
     # get_sig_s_eps = tr.Property(depends_on='model_data_mapping_items')
