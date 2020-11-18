@@ -1,76 +1,24 @@
-from ipywidgets import widgets
-
 from .cs_layout import CrossSectionLayout
 from .cs_shape import RectangleCS, CircleCS, TShapeCS, CustomShapeCS, ICrossSectionShape
 from bmcs_utils.api import InteractiveModel, Item, View
 import traits.api as tr
-from bmcs_utils.trait_types import \
-    Float, Bool, Int, FloatRangeEditor
-
-class Info(InteractiveModel):
-    name = 'Info'
-
-    # Cross section shape options
-    Rectangle = Bool(False)
-    Circle = Bool(False)
-    TShape = Bool(False)
-    CustomShape = Bool(False)
-
-    # Reinforement options
-    Fabric = Bool(False)
-    Bar = Bool(False)
-
-    # V1 = widgets.VBox([Item('Rectangle', latex=r'\Rectangle'),
-    #                    Item('Circle', latex=r'\Circle'),
-    #                    Item('TShape', latex=r'\TShape'),
-    #                    Item('CustomShape', latex=r'\CustomShape')]),
-    #
-    # V2 = widgets.VBox([Item('Fabric', latex=r'\Fabric'),
-    #                    Item('Bar', latex=r'\Bar')])
-
-    ipw_view = View(
-
-    # widgets.HBox([V1, V2])
-
-        Item('Rectangle', latex=r'Rectangle'),
-        Item('Circle', latex=r'Circle'),
-        Item('TShape', latex=r'TShape'),
-        Item('CustomShape', latex=r'CustomShape'),
-        Item('Fabric', latex='Fabric'),
-        Item('Bar', latex=r'Bar')
-
-    )
-    def subplots(self, fig):
-        return fig.subplots(1, 1)
-
-    def update_plot(self, ax):
-    # @TODO[SR]: If team like it, print the version, logo,
-    #            some initial information about the app if it worked with the layout
-        print('update_plot called')
-        trait_names = self.trait_names()
-        print(self.trait_get(trait_names))
+from bmcs_utils.trait_types import Float, Bool, Int, FloatRangeEditor
 
 
 class CSDesign(InteractiveModel):
+    name = 'Cross Section Design'
+
     cross_section_layout = tr.Instance(CrossSectionLayout)
 
     def _cross_section_layout_default(self):
         return CrossSectionLayout(beam_design=self)
 
-    name = 'Cross Section Design'
-
     H = tr.DelegatesTo('cross_section_shape')
 
-    _GEO = tr.Event
-    @tr.on_trait_change('cross_section_layout, +GEO, cross_section_layout._GEO')
-    def _reset_GEO(self):
-        self._GEO = True
-
-
     # Cross section shape options
-    Rectangle = Bool(False)
+    Rectangle = Bool(True)
     Circle = Bool(False)
-    TShape = Bool(True)
+    TShape = Bool(False)
     CustomShape = Bool(False)
 
     # Reinforement options
@@ -90,7 +38,6 @@ class CSDesign(InteractiveModel):
         return shape()
 
     ipw_view = View(
-
         Item('Rectangle', latex=r'Rectangle'),
         Item('Circle', latex=r'Circle'),
         Item('TShape', latex=r'TShape'),

@@ -7,6 +7,7 @@ from matplotlib.collections import PatchCollection
 from matplotlib.patches import Polygon, Circle
 import matplotlib.pyplot as plt
 
+
 class ICrossSectionShape(tr.Interface):
     """This interface lists the functions need to be implemented by cross section classes."""
 
@@ -65,6 +66,7 @@ class RectangleCS(CrossSectionShapeBase):
         ax.annotate('I = {} $mm^4$'.format(int(RectangleCS.get_cs_i(self)), 0),
                     xy=(-self.H/2 * 0.8, self.H/2 * 0.8), color='blue')
 
+
 @tr.provides(ICrossSectionShape)
 class CircleCS(CrossSectionShapeBase):
 
@@ -92,9 +94,7 @@ class CircleCS(CrossSectionShapeBase):
     def update_plot(self, ax):
         # TODO->Saeed: fix this
 
-
-        circle = Circle((0, self.H/2), self.H/2, edgecolor = 'black', facecolor='gray', fill = True
-                        )
+        circle = Circle((0, self.H/2), self.H/2, edgecolor = 'black', facecolor='gray', fill = True)
 
         ax.add_patch(circle)
         ax.autoscale_view()
@@ -103,6 +103,7 @@ class CircleCS(CrossSectionShapeBase):
                     xy=(-self.H/2 * 0.8, self.H/2), color='blue')
         ax.annotate('I = {} $mm^4$'.format(int(CircleCS.get_cs_i(self)), 0),
                     xy=(-self.H/2 * 0.8, self.H/2 * 0.8), color='blue')
+
 
 @tr.provides(ICrossSectionShape)
 class TShapeCS(CrossSectionShapeBase):
@@ -146,7 +147,7 @@ class TShapeCS(CrossSectionShapeBase):
         return sp.lambdify(z_, b_p, 'numpy')
 
     def update_plot(self, ax):
-        # TODO->Saeed: fix this
+        # TODO [Saeed]: fix this
         # Start drawing from bottom center of the cross section
         cs_points = np.array([  [self.B_w/2, 0],
                                 [self.B_w/2, self.H_w],
@@ -181,6 +182,7 @@ class TShapeCS(CrossSectionShapeBase):
         #             arrowprops={'arrowstyle': '<->'}, va='center', ha ='center')
         # ax.annotate('$H_w$', xy=(-self.B_f / 2 * 1.1, 0), xytext=(-self.B_f / 2 * 1.1 , self.H_w),
         #             arrowprops={'arrowstyle': '<->'}, va='center', ha ='center')
+
 
 # TODO->Saeed: maybe complete this
 @tr.provides(ICrossSectionShape)
