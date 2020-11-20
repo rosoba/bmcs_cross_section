@@ -12,7 +12,7 @@ class Reinforcement(InteractiveModel):
     z_j = tr.Array(np.float_, value=[50])
     """z positions of reinforcement layers"""
 
-    A_j = tr.Array(np.float_, value=[np.pi * (16 / 2.) ** 2])
+    A_j = tr.Array(np.float_, value=[3 * np.pi * (16 / 2.) ** 2])
     """cross section area of reinforcement layers"""
 
     E_j = tr.Array(np.float_, value=[210000])
