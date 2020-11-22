@@ -18,9 +18,12 @@ class MKappaSymbolic(SymbExpr):
     # -------------------------------------------------------------------------
     # Symbolic derivation of expressions
     # -------------------------------------------------------------------------
-    kappa = sp.Symbol('kappa', real=True)
-    eps_top = sp.symbols('varepsilon_top', real=True)
-    eps_bot = sp.symbols('varepsilon_bot', real=True)
+    # kappa = sp.Symbol('kappa', real=True)
+    # eps_top = sp.symbols('varepsilon_top', real=True)
+    # eps_bot = sp.symbols('varepsilon_bot', real=True)
+    kappa = sp.Symbol('kappa', real=True, nonpositive=True)
+    eps_top = sp.symbols('varepsilon_top', real=True, nonpositive=True)
+    eps_bot = sp.symbols('varepsilon_bot', real=True, nonnegative=True)
     b, h, z = sp.symbols('b, h, z', nonnegative=True)
     eps_sy, E_s = sp.symbols('varepsilon_sy, E_s')
     eps = sp.Symbol('varepsilon', real=True)
@@ -54,7 +57,7 @@ class MKappaSymbolic(SymbExpr):
         (0, eps >= eps_tu)
     )
     # Stress over the cross section height
-    # sig_c_z = sig_c_eps.subs(eps, eps_z)
+    # sig_c_z_ = sig_c_eps.subs(eps, eps_z)
     sig_c_z_ = sig_c_eps.subs(eps, eps_z_) # this was like this originally
 
     # Substitute eps_top to get sig as a function of (kappa, eps_bot, z)
@@ -131,8 +134,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def _get_z_m(self):
         return np.linspace(0, self.H, self.n_m)
 
-    low_kappa = Float(-0.001, BC=True)
-    high_kappa = Float(0.001, BC=True)
+    low_kappa = Float(-0.0001, BC=True)
+    high_kappa = Float(0.0001, BC=True)
     n_kappa = Int(100, BC=True)
 
     kappa_slider = Float(0)
@@ -321,38 +324,38 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     M_scale = Float(1e+6)
 
-    # def plot(self, ax1, ax2, ax22, ax3):
-    #     idx = self.idx
-    #     ax1.plot(self.kappa_t, self.M_t / self.M_scale)
-    #     ax1.set_ylabel('Moment [kNm]')
-    #     ax1.set_xlabel('Curvature [mm$^{-1}$]')
-    #     ax1.plot(self.kappa_t[idx], self.M_t[idx] / self.M_scale, marker='o')
-    #     ax2.barh(self.z_j, self.N_s_tj[idx, :], height=6, color='red', align='center')
-    #     # ax2.plot(self.N_s_tj[idx, :], self.z_j, color='red')
-    #     # print('Z', self.z_j)
-    #     # print(self.N_s_tj[idx, :])
-    #     # ax2.fill_between(eps_z_arr[idx,:], z_arr, 0, alpha=0.1);
-    #     #        ax3.plot(self.eps_tm[idx, :], self.z_m, color='k', linewidth=0.8)
-    #     ax22.plot(self.sig_tm[idx, :], self.z_m)
-    #     ax22.axvline(0, linewidth=0.8, color='k')
-    #     ax22.fill_betweenx(self.z_m, self.sig_tm[idx, :], 0, alpha=0.1)
-    #     mpl_align_xaxis(ax2, ax22)
-    #
-    #     M, kappa = self.inv_M_kappa
-    #     ax3.plot(M / self.M_scale, kappa)
-    #     ax3.set_xlabel('Momen [kNm]')
-    #     ax3.set_ylabel('Curvature[mm$^{-1}$]')
-    #
-    # @staticmethod
-    # def subplots(fig):
-    #     ax1, ax2, ax3 = fig.subplots(1, 3)
-    #     ax22 = ax2.twiny()
-    #     return ax1, ax2, ax22, ax3
-    #
-    # def update_plot(self, axes):
-    #     self.plot(*axes)
+    def plot(self, ax1, ax2, ax22, ax3):
+        idx = self.idx
+        ax1.plot(self.kappa_t, self.M_t / self.M_scale)
+        ax1.set_ylabel('Moment [kNm]')
+        ax1.set_xlabel('Curvature [mm$^{-1}$]')
+        ax1.plot(self.kappa_t[idx], self.M_t[idx] / self.M_scale, marker='o')
+        ax2.barh(self.z_j, self.N_s_tj[idx, :], height=6, color='red', align='center')
+        # ax2.plot(self.N_s_tj[idx, :], self.z_j, color='red')
+        # print('Z', self.z_j)
+        # print(self.N_s_tj[idx, :])
+        # ax2.fill_between(eps_z_arr[idx,:], z_arr, 0, alpha=0.1);
+        #        ax3.plot(self.eps_tm[idx, :], self.z_m, color='k', linewidth=0.8)
+        ax22.plot(self.sig_tm[idx, :], self.z_m)
+        ax22.axvline(0, linewidth=0.8, color='k')
+        ax22.fill_betweenx(self.z_m, self.sig_tm[idx, :], 0, alpha=0.1)
+        mpl_align_xaxis(ax2, ax22)
 
-    def plot(self, ax1, ax2):
+        M, kappa = self.inv_M_kappa
+        ax3.plot(M / self.M_scale, kappa)
+        ax3.set_xlabel('Momen [kNm]')
+        ax3.set_ylabel('Curvature[mm$^{-1}$]')
+
+    @staticmethod
+    def subplots(fig):
+        ax1, ax2, ax3 = fig.subplots(1, 3)
+        ax22 = ax2.twiny()
+        return ax1, ax2, ax22, ax3
+
+    def update_plot(self, axes):
+        self.plot(*axes)
+
+    def plot_mk_and_stress_profile(self, ax1, ax2):
         idx = self.idx
         ax1.plot(self.kappa_t, self.M_t / self.M_scale)
         ax1.set_ylabel('Moment [kNm]')
@@ -365,11 +368,3 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         ax22.axvline(0, linewidth=0.8, color='k')
         ax22.fill_betweenx(self.z_m, self.sig_tm[idx, :], 0, alpha=0.1)
         mpl_align_xaxis(ax2, ax22)
-
-    @staticmethod
-    def subplots(fig):
-        ax1, ax2 = fig.subplots(1, 2)
-        return ax1, ax2
-
-    def update_plot(self, axes):
-        self.plot(*axes)

@@ -26,7 +26,7 @@ class CrossSectionShapeBase(InteractiveModel):
     """"This class describes the geometry of the cross section."""
     name = 'Cross section shape'
 
-    H = Float(200)
+    H = Float(400)
 
     ipw_view = View(
         Item('H', minmax=(10, 3000), latex='H [mm]')
@@ -38,7 +38,7 @@ class RectangleCS(CrossSectionShapeBase):
 
     name = 'Rectangle'
 
-    B = Float(250)
+    B = Float(200)
 
     ipw_view = View(
         *CrossSectionShapeBase.ipw_view.content,        # this will add View Items of the base class CrossSectionShapeBase

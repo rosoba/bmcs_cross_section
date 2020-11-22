@@ -4,20 +4,6 @@ from bmcs_cross_section.cs_design.cs_shape import TShapeCS, RectangleCS
 from bmcs_cross_section.cs_design import CSDesign
 import numpy as np
 
-def run_example_with_default_params():
-    mc = MKappa()
-    mc.kappa_slider = -0.00001 # corresponds to idx = 25
-    mc.low_kappa = -0.00002
-    mc.high_kappa = 0.00002
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
-
-    mc.cross_section_shape = RectangleCS()
-    mc.cross_section_shape.H = 600
-    mc.cross_section_shape.B = 200
-
-    mc.plot(ax1, ax2)
-    plt.show()
-
 
 def run_example_with_t_section_and_custom_params():
     # TODO->Homam: debug MomentCurvature for t-section results
@@ -29,7 +15,7 @@ def run_example_with_t_section_and_custom_params():
     h_w = 0.85 * H
     tshape = TShapeCS(H=H, B_w=b_w, B_f=b_f, H_w=h_w)
 
-    mc = MKappa()
+    mc = MKappa(n_kappa=100, n_m=100)
     mc.cross_section_shape = tshape
 
     # Material parameters [mm], [N/mm2]
@@ -56,10 +42,11 @@ def run_example_with_t_section_and_custom_params():
 
     # Plotting
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
-    mc.plot(ax1, ax2)
+    mc.plot_mk_and_stress_profile(ax1, ax2)
     plt.show()
 
 
 if __name__ == '__main__':
-    # run_example_with_default_params()
     run_example_with_t_section_and_custom_params()
+
+    # run_example_rectangle_Yang2010_R13C_1()
