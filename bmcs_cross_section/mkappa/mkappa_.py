@@ -38,8 +38,8 @@ class MKappaSymbolic(tr.HasStrictTraits):
                                                 nonnegative=True)
     eps_cy, eps_cu = sp.symbols(r'varepsilon_cy, varepsilon_cu', real=True, nonpositive=True)
     kappa = sp.Symbol('kappa', real=True, nonpositive=True)
-    eps_top = sp.symbols('varepsilon_top', real=True, nonpositive=True)
-    eps_bot = sp.symbols('varepsilon_bot', real=True, nonnegative=True)
+    eps_top = sp.symbols('varepsilon_top', real=True) # , nonpositive=True)
+    eps_bot = sp.symbols('varepsilon_bot', real=True) # , nonnegative=True)
     b, h, z = sp.symbols('b, h, z', nonnegative=True)
     eps_sy, E_s = sp.symbols('varepsilon_sy, E_s')
     eps = sp.Symbol('varepsilon', real=True)
@@ -128,6 +128,7 @@ class MKappaSymbolic(tr.HasStrictTraits):
 
     @tr.cached_property
     def _get_get_sig_c_z(self):
+        print(self.sig_c_z_lin.subs(self.model_data_mapping))
         return sp.lambdify((self.kappa, self.eps_bot, self.z), self.sig_c_z_lin.subs(self.model_data_mapping), 'numpy')
 
     # get_sig_s_eps = tr.Property(depends_on='model_data_mapping_items')
@@ -176,11 +177,13 @@ class MKappa(InteractiveModel):
         z_tm = self.z_m[np.newaxis, :]
         b_z_m = self.mcs.get_b_z(z_tm)  # self.mcs.get_b_z(self.z_m) also OK
         N_z_tm = b_z_m * self.mcs.get_sig_c_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
+        test = self.mcs.get_sig_c_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
         return np.trapz(N_z_tm, x=z_tm, axis=-1)
 
     def get_N_t(self, kappa_t, eps_bot_t):
         N_s_t = np.sum(self.get_N_s_tj(kappa_t, eps_bot_t), axis=-1)
-        return self.get_N_c_t(kappa_t, eps_bot_t) + N_s_t
+        N_c_t = self.get_N_c_t(kappa_t, eps_bot_t)
+        return N_c_t + N_s_t
 
     # SOLVER: Get eps_bot to render zero force
 

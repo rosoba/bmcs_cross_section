@@ -54,11 +54,12 @@ class MKappaSymbolic(SymbExpr):
         (0, eps >= eps_tu)
     )
     # Stress over the cross section height
-    sig_c_z = sig_c_eps.subs(eps, eps_z)
-    # sig_c_z = sig_c_eps.subs(eps, eps_z_) # this was like this originally
+    # sig_c_z = sig_c_eps.subs(eps, eps_z)
+    sig_c_z_ = sig_c_eps.subs(eps, eps_z_) # this was like this originally
 
     # Substitute eps_top to get sig as a function of (kappa, eps_bot, z)
-    sig_c_z = sig_c_z.subs(eps_top_solved)
+    sig_c_z = sig_c_z_.subs(eps_top_solved)
+
     # Reinforcement constitutive law
     sig_s_eps = sp.Piecewise(
         (-E_s * eps_sy, eps < -eps_sy),
@@ -79,8 +80,7 @@ class MKappaSymbolic(SymbExpr):
 
 
 class MKappa(InteractiveModel, InjectSymbExpr):
-    """Class returning the moment curvature relationship.
-    """
+    """Class returning the moment curvature relationship."""
     name = 'Moment-Curvature'
     ipw_view = View(
         Item('low_kappa'),
@@ -146,7 +146,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         return idx
 
     kappa_t = tr.Property(tr.Array(np.float_), depends_on='+BC')
-    '''Curvature values to for which the bending moment must be found
+    '''Curvature values for which the bending moment must be found
     '''
 
     @tr.cached_property
@@ -168,14 +168,14 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def get_N_c_t(self, kappa_t, eps_bot_t):
         z_tm = self.z_m[np.newaxis, :]
         b_z_m = self.cross_section_shape.get_b(z_tm)
-        N_z_tm = b_z_m * self.symb.get_sig_c_z(
-            kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm
-        )
+        N_z_tm = b_z_m * self.symb.get_sig_c_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
+        test = self.symb.get_sig_c_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
         return np.trapz(N_z_tm, x=z_tm, axis=-1)
 
     def get_N_t(self, kappa_t, eps_bot_t):
         N_s_t = np.sum(self.get_N_s_tj(kappa_t, eps_bot_t), axis=-1)
-        return self.get_N_c_t(kappa_t, eps_bot_t) + N_s_t
+        N_c_t = self.get_N_c_t(kappa_t, eps_bot_t)
+        return N_c_t + N_s_t
 
     # SOLVER: Get eps_bot to render zero force
 
@@ -184,7 +184,6 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     @tr.cached_property
     def _get_eps_bot_t(self):
-        print('Solve for eps_bot_t')
         res = root(lambda eps_bot_t: self.get_N_t(self.kappa_t, eps_bot_t),
                    0.0000001 + np.zeros_like(self.kappa_t), tol=1e-6)
         return res.x
@@ -223,9 +222,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def _get_M_c_t(self):
         z_tm = self.z_m[np.newaxis, :]
         b_z_m = self.cross_section_shape.get_b(z_tm)
-        N_z_tm = b_z_m * self.symb.get_sig_c_z(
-            self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis], z_tm
-        )
+        N_z_tm = b_z_m * self.symb.get_sig_c_z(self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis], z_tm)
         return -np.trapz(N_z_tm * z_tm, x=z_tm, axis=-1)
 
     M_t = tr.Property(depends_on='+BC')
@@ -324,33 +321,55 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     M_scale = Float(1e+6)
 
-    def plot(self, ax1, ax2, ax22, ax3):
+    # def plot(self, ax1, ax2, ax22, ax3):
+    #     idx = self.idx
+    #     ax1.plot(self.kappa_t, self.M_t / self.M_scale)
+    #     ax1.set_ylabel('Moment [kNm]')
+    #     ax1.set_xlabel('Curvature [mm$^{-1}$]')
+    #     ax1.plot(self.kappa_t[idx], self.M_t[idx] / self.M_scale, marker='o')
+    #     ax2.barh(self.z_j, self.N_s_tj[idx, :], height=6, color='red', align='center')
+    #     # ax2.plot(self.N_s_tj[idx, :], self.z_j, color='red')
+    #     # print('Z', self.z_j)
+    #     # print(self.N_s_tj[idx, :])
+    #     # ax2.fill_between(eps_z_arr[idx,:], z_arr, 0, alpha=0.1);
+    #     #        ax3.plot(self.eps_tm[idx, :], self.z_m, color='k', linewidth=0.8)
+    #     ax22.plot(self.sig_tm[idx, :], self.z_m)
+    #     ax22.axvline(0, linewidth=0.8, color='k')
+    #     ax22.fill_betweenx(self.z_m, self.sig_tm[idx, :], 0, alpha=0.1)
+    #     mpl_align_xaxis(ax2, ax22)
+    #
+    #     M, kappa = self.inv_M_kappa
+    #     ax3.plot(M / self.M_scale, kappa)
+    #     ax3.set_xlabel('Momen [kNm]')
+    #     ax3.set_ylabel('Curvature[mm$^{-1}$]')
+    #
+    # @staticmethod
+    # def subplots(fig):
+    #     ax1, ax2, ax3 = fig.subplots(1, 3)
+    #     ax22 = ax2.twiny()
+    #     return ax1, ax2, ax22, ax3
+    #
+    # def update_plot(self, axes):
+    #     self.plot(*axes)
+
+    def plot(self, ax1, ax2):
         idx = self.idx
         ax1.plot(self.kappa_t, self.M_t / self.M_scale)
         ax1.set_ylabel('Moment [kNm]')
         ax1.set_xlabel('Curvature [mm$^{-1}$]')
         ax1.plot(self.kappa_t[idx], self.M_t[idx] / self.M_scale, marker='o')
         ax2.barh(self.z_j, self.N_s_tj[idx, :], height=6, color='red', align='center')
-        # ax2.plot(self.N_s_tj[idx, :], self.z_j, color='red')
-        # print('Z', self.z_j)
-        # print(self.N_s_tj[idx, :])
-        # ax2.fill_between(eps_z_arr[idx,:], z_arr, 0, alpha=0.1);
-        #        ax3.plot(self.eps_tm[idx, :], self.z_m, color='k', linewidth=0.8)
+
+        ax22 = ax2.twiny()
         ax22.plot(self.sig_tm[idx, :], self.z_m)
         ax22.axvline(0, linewidth=0.8, color='k')
         ax22.fill_betweenx(self.z_m, self.sig_tm[idx, :], 0, alpha=0.1)
         mpl_align_xaxis(ax2, ax22)
 
-        M, kappa = self.inv_M_kappa
-        ax3.plot(M / self.M_scale, kappa)
-        ax3.set_xlabel('Momen [kNm]')
-        ax3.set_ylabel('Curvature[mm$^{-1}$]')
-
     @staticmethod
     def subplots(fig):
-        ax1, ax2, ax3 = fig.subplots(1, 3)
-        ax22 = ax2.twiny()
-        return ax1, ax2, ax22, ax3
+        ax1, ax2 = fig.subplots(1, 2)
+        return ax1, ax2
 
     def update_plot(self, axes):
         self.plot(*axes)

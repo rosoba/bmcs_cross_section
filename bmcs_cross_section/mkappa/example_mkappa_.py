@@ -9,7 +9,7 @@ def run_example_with_default_params():
     mc.model_data.h = 600
     mc.model_data.b = 200
     mc.kappa_range = (-0.00002, 0.00002, 100)
-    fig, ((ax1, ax2)) = plt.subplots(1, 2, figsize=(10, 5))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
     mc.plot(ax1, ax2)
     plt.show()
 
@@ -48,7 +48,7 @@ def run_example_with_t_section_and_custom_params():
     mc.kappa_range = (-0.00002, 0.00002, 100)
 
     # Plotting
-    fig, ((ax1, ax2)) = plt.subplots(1, 2, figsize=(10, 5))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
     mc.plot(ax1, ax2)
     plt.show()
 
