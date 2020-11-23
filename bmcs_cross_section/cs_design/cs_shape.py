@@ -159,6 +159,8 @@ class TShapeCS(CrossSectionShapeBase):
                                 [-self.B_w/2, 0]])
 
         cs = Polygon(cs_points)
+
+        #TODO[SR]: correct the grey color
         patch_collection = PatchCollection([cs], facecolor='gray', edgecolor='black')
         ax.add_collection(patch_collection)
 
