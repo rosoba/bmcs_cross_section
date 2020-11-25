@@ -27,12 +27,6 @@ class CSDesign(InteractiveModel):
 
     cross_section_shape = tr.Instance(ICrossSectionShape)
     def _cross_section_shape_default(self):
-        traits_dic = self.trait_get(self.trait_names())
-        True_list = [name for name, age in traits_dic.items() if age == True]
-
-        # trait_names = self.trait_names()
-        # print(self.trait_get(self.trait_names()))
-        #
 #         if self.Rectangle == True:
 #             shape = RectangleCS
 #         elif self.Circle == True:
@@ -41,6 +35,7 @@ class CSDesign(InteractiveModel):
 #             shape = TShapeCS
 #         elif self.CustomShape == True:
 #             shape = CustomShapeCS
+        # TODO [Homam] fix this
         return RectangleCS()
 
     ipw_view = View(
