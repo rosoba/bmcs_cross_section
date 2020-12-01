@@ -97,7 +97,7 @@ class Matrix(InteractiveModel):
 class CrossSectionLayout(InteractiveModel):
     name = 'CrossSectionLayout'
 
-    beam_design = tr.WeakRef
+    cs_design = tr.WeakRef
 
 
     # print = Info.trait_get(Info.trait_names())
@@ -111,7 +111,7 @@ class CrossSectionLayout(InteractiveModel):
     bar = tr.Instance(Bar, ())
 
     def get_shape(self):
-        rec = tr.Instance(self.beam_design.cross_section_shape, ())
+        rec = tr.Instance(self.cs_design.cross_section_shape, ())
 
     def get_reinf(self):
         pass
@@ -120,7 +120,7 @@ class CrossSectionLayout(InteractiveModel):
 
         # give him a B value
         B = 100
-        H = self.beam_design.cross_section_shape.H
+        H = self.cs_design.cross_section_shape.H
         # A_composite = B * H
         A_composite = B * H
 
@@ -138,14 +138,14 @@ class CrossSectionLayout(InteractiveModel):
         return fig.subplots(1, 1)
 
     def update_plot(self, ax):
-        self.beam_design.cross_section_shape.update_plot(ax)
+        self.cs_design.cross_section_shape.update_plot(ax)
 
         # TODO->Saeed: the previous line will plot a cross section, please add the steel to it just as red strips in z_j locations
         #  and with a width that is relative to A_j (get z_j and A_j values from 'reinforcement' class variable)
         #  (just fix, generalize and improve the following)
-        H = int(self.beam_design.cross_section_shape.H)
+        H = int(self.cs_design.cross_section_shape.H)
 
-        max_B = np.max(self.beam_design.cross_section_shape.get_b(np.linspace(0, 100, H)))
+        max_B = np.max(self.cs_design.cross_section_shape.get_b(np.linspace(0, 100, H)))
         z1 = self.reinforcement.z_j[0]
         ax.plot([-max_B/2, max_B/2], [z1, z1], color='r', linewidth=5)
 

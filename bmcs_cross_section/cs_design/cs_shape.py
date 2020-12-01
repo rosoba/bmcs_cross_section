@@ -4,8 +4,8 @@ import numpy as np
 import sympy as sp
 from bmcs_utils.api import View, Item, Float
 from matplotlib.collections import PatchCollection
-from matplotlib.patches import Polygon, Circle
-import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon
+from matplotlib.patches import Circle as MPL_Circle
 
 
 class ICrossSectionShape(tr.Interface):
@@ -34,7 +34,7 @@ class CrossSectionShapeBase(InteractiveModel):
 
 
 @tr.provides(ICrossSectionShape)
-class RectangleCS(CrossSectionShapeBase):
+class Rectangle(CrossSectionShapeBase):
 
     name = 'Rectangle'
 
@@ -61,14 +61,14 @@ class RectangleCS(CrossSectionShapeBase):
         ax.autoscale_view()
         ax.set_aspect('equal')
 
-        ax.annotate('Area = {} $mm^2$'.format(int(RectangleCS.get_cs_area(self)), 0),
+        ax.annotate('Area = {} $mm^2$'.format(int(Rectangle.get_cs_area(self)), 0),
                     xy=(-self.H/2 * 0.8, self.H/2), color='blue')
-        ax.annotate('I = {} $mm^4$'.format(int(RectangleCS.get_cs_i(self)), 0),
+        ax.annotate('I = {} $mm^4$'.format(int(Rectangle.get_cs_i(self)), 0),
                     xy=(-self.H/2 * 0.8, self.H/2 * 0.8), color='blue')
 
 
 @tr.provides(ICrossSectionShape)
-class CircleCS(CrossSectionShapeBase):
+class Circle(CrossSectionShapeBase):
 
     # TODO->Rostia: provide input field instead minmax range
     # H from the base class is used as the D, for the diameter of the circular section
@@ -94,19 +94,19 @@ class CircleCS(CrossSectionShapeBase):
     def update_plot(self, ax):
         # TODO->Saeed: fix this
 
-        circle = Circle((0, self.H/2), self.H/2, edgecolor = 'black', facecolor='gray', fill = True)
+        circle = MPL_Circle((0, self.H/2), self.H/2, edgecolor = 'black', facecolor='gray', fill = True)
 
         ax.add_patch(circle)
         ax.autoscale_view()
         ax.set_aspect('equal')
-        ax.annotate('Area = {} $mm^2$'.format(int(CircleCS.get_cs_area(self)), 0),
+        ax.annotate('Area = {} $mm^2$'.format(int(self.get_cs_area()), 0),
                     xy=(-self.H/2 * 0.8, self.H/2), color='blue')
-        ax.annotate('I = {} $mm^4$'.format(int(CircleCS.get_cs_i(self)), 0),
+        ax.annotate('I = {} $mm^4$'.format(int(self.get_cs_i()), 0),
                     xy=(-self.H/2 * 0.8, self.H/2 * 0.8), color='blue')
 
 
 @tr.provides(ICrossSectionShape)
-class TShapeCS(CrossSectionShapeBase):
+class TShape(CrossSectionShapeBase):
     name = 'T-shape'
 
     B_f = Float(200, input=True)
@@ -164,17 +164,17 @@ class TShapeCS(CrossSectionShapeBase):
         patch_collection = PatchCollection([cs], facecolor='gray', edgecolor='black')
         ax.add_collection(patch_collection)
 
-        ax.scatter(0, TShapeCS.get_cs_i(self)[0], color = 'white', s = self.B_w, marker = "+")
+        ax.scatter(0, TShape.get_cs_i(self)[0], color ='white', s = self.B_w, marker ="+")
 
         ax.autoscale_view()
         ax.set_aspect('equal')
 
-        ax.annotate('Area = {} $mm^2$'.format(int(TShapeCS.get_cs_area(self)), 0),
+        ax.annotate('Area = {} $mm^2$'.format(int(TShape.get_cs_area(self)), 0),
                     xy=(-self.H/2 * 0.8, (self.H / 2 + self.H_w / 2)), color='blue')
-        ax.annotate('I = {} $mm^4$'.format(int(TShapeCS.get_cs_i(self)[1]), 0),
+        ax.annotate('I = {} $mm^4$'.format(int(TShape.get_cs_i(self)[1]), 0),
                     xy=(-self.H/2 * 0.8, (self.H / 2 + self.H_w / 2) * 0.9), color='blue')
         ax.annotate('$Y_c$',
-                    xy=(0, TShapeCS.get_cs_i(self)[0] * 0.85), color='purple')
+                    xy=(0, TShape.get_cs_i(self)[0] * 0.85), color='purple')
 
         # ax.annotate('$B_w$', xy=(-self.B_w / 2 , -self.B_w * 0.1), xytext=(self.B_w / 2 , -self.B_w * 0.1),
         #             arrowprops={'arrowstyle': '<->'}, va='center', ha ='center')
@@ -188,7 +188,7 @@ class TShapeCS(CrossSectionShapeBase):
 
 # TODO->Saeed: maybe complete this
 @tr.provides(ICrossSectionShape)
-class CustomShapeCS(CrossSectionShapeBase):
+class CustomShape(CrossSectionShapeBase):
 
     def get_cs_area(self):
         pass
@@ -210,7 +210,7 @@ class CustomShapeCS(CrossSectionShapeBase):
         ax.plot(b, z, color='black')
         ax.autoscale_view()
         ax.set_aspect('equal')
-        ax.annotate('Area = {} $mm^2$'.format(int(CustomShapeCS.get_cs_area(self)), 0),
+        ax.annotate('Area = {} $mm^2$'.format(int(CustomShape.get_cs_area(self)), 0),
                     xy=(-self.H/2 * 0.8, self.H/2), color='blue')
-        ax.annotate('I = {} $mm^4$'.format(int(CustomShapeCS.get_cs_i(self)), 0),
+        ax.annotate('I = {} $mm^4$'.format(int(CustomShape.get_cs_i(self)), 0),
                     xy=(-self.H/2 * 0.8, self.H/2 * 0.8), color='blue')

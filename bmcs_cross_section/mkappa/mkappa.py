@@ -4,7 +4,7 @@
 import numpy as np
 import sympy as sp
 import traits.api as tr
-from bmcs_cross_section.cs_design import CSDesign
+from bmcs_cross_section.cs_design import CrossSectionDesign
 from scipy.optimize import root
 from bmcs_utils.api import \
     InteractiveModel, Item, View, mpl_align_xaxis, \
@@ -97,13 +97,13 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     )
 
     symb_class = MKappaSymbolic
-    beam_design = tr.Instance(CSDesign, ())
+    cs_design = tr.Instance(CrossSectionDesign, ())
 
     # Use PrototypedFrom only when the prototyped object is a class (The prototyped attribute behaves similarly
     # to a delegated attribute, until it is explicitly changed; from that point forward, the prototyped attribute
-    # changes independently from its prototype.) (it's kind of like tr.DelegatesTo('beam_design.cross_section_shape'))
-    cross_section_shape = tr.PrototypedFrom('beam_design', 'cross_section_shape')
-    cross_section_layout = tr.PrototypedFrom('beam_design', 'cross_section_layout')
+    # changes independently from its prototype.) (it's kind of like tr.DelegatesTo('cs_design.cross_section_shape'))
+    cross_section_shape = tr.PrototypedFrom('cs_design', 'cross_section_shape')
+    cross_section_layout = tr.PrototypedFrom('cs_design', 'cross_section_layout')
     matrix = tr.PrototypedFrom('cross_section_layout', 'matrix')
     reinforcement = tr.PrototypedFrom('cross_section_layout', 'reinforcement')
 
@@ -127,8 +127,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     n_m = Int(100, DSC=True)
 
-    # @todo: fix the dependency - `h` should be replaced by _GEO
-    z_m = tr.Property(depends_on='n_m, h')
+    # @todo: fix the dependency - `H` should be replaced by _GEO
+    z_m = tr.Property(depends_on='n_m, H')
 
     @tr.cached_property
     def _get_z_m(self):
@@ -293,10 +293,10 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         kappa_I = self.kappa_t[I_min:I_max + 1]
         # find the index corresponding to zero kappa
         idx = np.argmax(0 <= self.kappa_t)
-        # and modify the values such that they the
+        # and modify the values such that the
         # Values of moment are non-descending
         M_plus = M_I[idx:]
-        M_diff = M_plus[:, np.newaxis] - M_plus[np.newaxis,:]
+        M_diff = M_plus[:, np.newaxis] - M_plus[np.newaxis, :]
         n_ij = len(M_plus)
         ij = np.mgrid[0:n_ij:1, 0:n_ij:1]
         M_diff[np.where(ij[1] >= ij[0])] = 0
@@ -343,7 +343,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
         M, kappa = self.inv_M_kappa
         ax3.plot(M / self.M_scale, kappa)
-        ax3.set_xlabel('Momen [kNm]')
+        ax3.set_xlabel('Moment [kNm]')
         ax3.set_ylabel('Curvature[mm$^{-1}$]')
 
     @staticmethod

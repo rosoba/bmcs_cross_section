@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 from bmcs_cross_section.mkappa.mkappa import MKappa
-from bmcs_cross_section.cs_design.cs_shape import TShapeCS, RectangleCS
-from bmcs_cross_section.cs_design import CSDesign
+from bmcs_cross_section.cs_design.cs_shape import TShape, Rectangle
+from bmcs_cross_section.cs_design import CrossSectionDesign
 import numpy as np
 
 
@@ -13,7 +13,7 @@ def run_example_with_t_section_and_custom_params():
     b_w = 50
     b_f = 500
     h_w = 0.85 * H
-    tshape = TShapeCS(H=H, B_w=b_w, B_f=b_f, H_w=h_w)
+    tshape = TShape(H=H, B_w=b_w, B_f=b_f, H_w=h_w)
 
     mc = MKappa(n_kappa=100, n_m=100)
     mc.cross_section_shape = tshape

@@ -1,11 +1,11 @@
 from .cs_layout import CrossSectionLayout
-from .cs_shape import RectangleCS, CircleCS, TShapeCS, CustomShapeCS, ICrossSectionShape
+from .cs_shape import Rectangle, Circle, TShape, CustomShape, ICrossSectionShape
 from bmcs_utils.api import InteractiveModel, Item, View
 import traits.api as tr
 from bmcs_utils.trait_types import Float, Bool, Int, FloatRangeEditor
 
 
-class CSDesign(InteractiveModel):
+class CrossSectionDesign(InteractiveModel):
     name = 'Cross Section Design'
 
     cross_section_layout = tr.Instance(CrossSectionLayout)
@@ -28,15 +28,15 @@ class CSDesign(InteractiveModel):
     cross_section_shape = tr.Instance(ICrossSectionShape)
     def _cross_section_shape_default(self):
 #         if self.Rectangle == True:
-#             shape = RectangleCS
+#             shape = Rectangle
 #         elif self.Circle == True:
-#             shape = CircleCS
+#             shape = Circle
 #         elif self.TShape == True:
-#             shape = TShapeCS
+#             shape = TShape
 #         elif self.CustomShape == True:
-#             shape = CustomShapeCS
+#             shape = CustomShape
         # TODO [Homam] fix this
-        return RectangleCS()
+        return Rectangle()
 
     ipw_view = View(
         Item('Rectangle', latex=r'Rectangle'),
