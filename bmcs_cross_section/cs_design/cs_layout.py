@@ -95,7 +95,7 @@ class Matrix(InteractiveModel):
 
 
 class CrossSectionLayout(InteractiveModel):
-    name = 'CrossSectionLayout'
+    name = 'Cross Section Layout'
 
     cs_design = tr.WeakRef
 

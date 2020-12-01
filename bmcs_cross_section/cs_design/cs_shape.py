@@ -24,7 +24,7 @@ class ICrossSectionShape(tr.Interface):
 
 class CrossSectionShapeBase(InteractiveModel):
     """"This class describes the geometry of the cross section."""
-    name = 'Cross section shape'
+    name = 'Cross Section Shape'
 
     H = Float(400)
 
@@ -35,8 +35,6 @@ class CrossSectionShapeBase(InteractiveModel):
 
 @tr.provides(ICrossSectionShape)
 class Rectangle(CrossSectionShapeBase):
-
-    name = 'Rectangle'
 
     B = Float(200)
 
@@ -107,7 +105,6 @@ class Circle(CrossSectionShapeBase):
 
 @tr.provides(ICrossSectionShape)
 class TShape(CrossSectionShapeBase):
-    name = 'T-shape'
 
     B_f = Float(200, input=True)
     B_w = Float(50, input=True)
