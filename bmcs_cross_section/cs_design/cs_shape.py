@@ -56,7 +56,7 @@ class Rectangle(CrossSectionShapeBase):
 
     def update_plot(self, ax):
 
-        ax.fill([-self.B/2, self.B/2, self.B/2, -self.B/2, -self.B/2], [0, 0, self.H, self.H, 0], color='gray')
+        ax.fill([-self.B/2, self.B/2, self.B/2, -self.B/2, -self.B/2], [0, 0, self.H, self.H, 0], color='gray', alpha=0.2 )
         ax.plot([-self.B/2, self.B/2, self.B/2, -self.B/2, -self.B/2], [0, 0, self.H, self.H, 0], color='black')
         ax.autoscale_view()
         ax.set_aspect('equal')
@@ -94,7 +94,7 @@ class Circle(CrossSectionShapeBase):
     def update_plot(self, ax):
         # TODO->Saeed: fix this
 
-        circle = MPL_Circle((0, self.H/2), self.H/2, edgecolor = 'black', facecolor='gray', fill = True)
+        circle = MPL_Circle((0, self.H/2), self.H/2, facecolor=(.5,.5,.5,0.2), edgecolor=(0,0,0,1))
 
         ax.add_patch(circle)
         ax.autoscale_view()
@@ -160,10 +160,9 @@ class TShape(CrossSectionShapeBase):
 
         cs = Polygon(cs_points)
 
-        #TODO[SR]: correct the grey color
-        patch_collection = PatchCollection([cs], facecolor='gray', edgecolor='black')
-        ax.add_collection(patch_collection)
+        patch_collection = PatchCollection([cs], facecolor=(.5,.5,.5,0.2), edgecolors=(0,0,0,1))
 
+        ax.add_collection(patch_collection)
         ax.scatter(0, TShape.get_cs_i(self)[0], color ='white', s = self.B_w, marker ="+")
 
         ax.autoscale_view()

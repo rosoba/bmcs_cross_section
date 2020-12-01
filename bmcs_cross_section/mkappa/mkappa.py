@@ -357,10 +357,11 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     def plot_mk_and_stress_profile(self, ax1, ax2):
         idx = self.idx
-        ax1.plot(self.kappa_t, self.M_t / self.M_scale)
+        ax1.plot(self.kappa_t, self.M_t / self.M_scale, color='blue', label = 'bmcs_cs_mkappa', alpha=0.5)
         ax1.set_ylabel('Moment [kNm]')
         ax1.set_xlabel('Curvature [mm$^{-1}$]')
-        ax1.plot(self.kappa_t[idx], self.M_t[idx] / self.M_scale, marker='o')
+        ax1.legend()
+        ax1.plot(self.kappa_t[idx], self.M_t[idx] / self.M_scale, color='orange', marker='o')
         ax2.barh(self.z_j, self.N_s_tj[idx, :], height=6, color='red', align='center')
 
         ax22 = ax2.twiny()
