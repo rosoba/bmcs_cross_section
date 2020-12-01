@@ -11,7 +11,7 @@ class CrossSectionDesign(InteractiveModel):
     cross_section_layout = tr.Instance(CrossSectionLayout)
 
     def _cross_section_layout_default(self):
-        return CrossSectionLayout(beam_design=self)
+        return CrossSectionLayout(cs_design=self)
 
     H = tr.DelegatesTo('cross_section_shape')
 

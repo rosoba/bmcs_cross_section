@@ -99,7 +99,6 @@ class CrossSectionLayout(InteractiveModel):
 
     cs_design = tr.WeakRef
 
-
     # print = Info.trait_get(Info.trait_names())
 
         # = self.trait_names()
