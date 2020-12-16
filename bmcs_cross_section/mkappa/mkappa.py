@@ -369,3 +369,9 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         ax22.axvline(0, linewidth=0.8, color='k')
         ax22.fill_betweenx(self.z_m, self.sig_tm[idx, :], 0, alpha=0.1)
         mpl_align_xaxis(ax2, ax22)
+
+    def plot_mk(self, ax1):
+        ax1.plot(self.kappa_t, self.M_t / self.M_scale, color='blue', label = 'bmcs_cs_mkappa', alpha=0.5)
+        ax1.set_ylabel('Moment [kNm]')
+        ax1.set_xlabel('Curvature [mm$^{-1}$]')
+        ax1.legend()
