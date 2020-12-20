@@ -145,8 +145,14 @@ class CrossSectionLayout(InteractiveModel):
         H = int(self.cs_design.cross_section_shape.H)
 
         max_B = np.max(self.cs_design.cross_section_shape.get_b(np.linspace(0, 100, H)))
-        z1 = self.reinforcement.z_j[0]
-        ax.plot([-max_B/2, max_B/2], [z1, z1], color='r', linewidth=5)
+        
+        for i in range(len(self.reinforcement.z_j)):
+            
+            z = self.reinforcement.z_j[i]
+            A = self.reinforcement.A_j[i]
+            ax.plot([-max_B/A/2, max_B/A/2], [z, z], color='r', linewidth=5)
+
+#         ax.barh(self.z_j, self.N_s_tj[idx, :], height=6, color='red', align='center')
 
 
         # ax.plot([self.b / 2 - self.width / 2, self.b / 2 + self.width / 2], [self.f_h, self.f_h], color='Blue',
