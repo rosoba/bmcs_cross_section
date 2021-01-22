@@ -1,6 +1,3 @@
-"""
-
-"""
 import numpy as np
 import sympy as sp
 import traits.api as tr
@@ -18,12 +15,9 @@ class MKappaSymbolic(SymbExpr):
     # -------------------------------------------------------------------------
     # Symbolic derivation of expressions
     # -------------------------------------------------------------------------
-    # kappa = sp.Symbol('kappa', real=True)
-    # eps_top = sp.symbols('varepsilon_top', real=True)
-    # eps_bot = sp.symbols('varepsilon_bot', real=True)
-    kappa = sp.Symbol('kappa', real=True, nonpositive=True)
-    eps_top = sp.symbols('varepsilon_top', real=True, nonpositive=True)
-    eps_bot = sp.symbols('varepsilon_bot', real=True, nonnegative=True)
+    kappa = sp.Symbol('kappa', real=True)
+    eps_top = sp.symbols('varepsilon_top', real=True)
+    eps_bot = sp.symbols('varepsilon_bot', real=True)
     b, h, z = sp.symbols('b, h, z', nonnegative=True)
     eps_sy, E_s = sp.symbols('varepsilon_sy, E_s')
     eps = sp.Symbol('varepsilon', real=True)
@@ -56,6 +50,7 @@ class MKappaSymbolic(SymbExpr):
         (mu * E_ct * eps_cr, eps < eps_tu),
         (0, eps >= eps_tu)
     )
+
     # Stress over the cross section height
     # sig_c_z_ = sig_c_eps.subs(eps, eps_z)
     sig_c_z_ = sig_c_eps.subs(eps, eps_z_) # this was like this originally
@@ -78,7 +73,7 @@ class MKappaSymbolic(SymbExpr):
     symb_expressions = [
         ('eps_z', ('kappa', 'eps_bot', 'z')),
         ('sig_c_z', ('kappa', 'eps_bot', 'z')),
-        ('sig_s_eps', ('eps', 'E_s', 'eps_sy')),
+        ('sig_s_eps', ('eps', 'E_s', 'eps_sy'))
     ]
 
 
@@ -86,12 +81,13 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     """Class returning the moment curvature relationship."""
     name = 'Moment-Curvature'
     ipw_view = View(
-        Item('low_kappa'),
-        Item('high_kappa'),
-        Item('n_kappa'),
+        Item('low_kappa', latex=r'\text{Low}~\kappa'),
+        Item('high_kappa', latex=r'\text{High}~\kappa'),
+        Item('n_kappa', latex='n_{\kappa}'),
         Item('n_m', latex='n_m \mathrm{[mm]}'),
         Item('kappa_slider', latex='\kappa',
-             editor=FloatRangeEditor(low_name='low_kappa', high_name='high_kappa',
+             editor=FloatRangeEditor(low_name='low_kappa',
+                                     high_name='high_kappa',
                                      n_steps_name='n_kappa')
              )
     )
@@ -357,7 +353,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     def plot_mk_and_stress_profile(self, ax1, ax2):
         idx = self.idx
-        ax1.plot(self.kappa_t, self.M_t / self.M_scale, color='blue', label = 'bmcs_cs_mkappa', alpha=0.5)
+        ax1.plot(self.kappa_t, self.M_t / self.M_scale, color='blue', label='bmcs_cs_mkappa', alpha=0.5)
         ax1.set_ylabel('Moment [kNm]')
         ax1.set_xlabel('Curvature [mm$^{-1}$]')
         ax1.legend()
