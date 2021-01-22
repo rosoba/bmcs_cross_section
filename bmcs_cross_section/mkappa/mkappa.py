@@ -15,6 +15,9 @@ class MKappaSymbolic(SymbExpr):
     # -------------------------------------------------------------------------
     # Symbolic derivation of expressions
     # -------------------------------------------------------------------------
+    # kappa = sp.Symbol('kappa', real=True, nonpositive=True)
+    # eps_top = sp.symbols('varepsilon_top', real=True, nonpositive=True)
+    # eps_bot = sp.symbols('varepsilon_bot', real=True, nonnegative=True)
     kappa = sp.Symbol('kappa', real=True)
     eps_top = sp.symbols('varepsilon_top', real=True)
     eps_bot = sp.symbols('varepsilon_bot', real=True)
@@ -59,10 +62,18 @@ class MKappaSymbolic(SymbExpr):
     sig_c_z = sig_c_z_.subs(eps_top_solved)
 
     # Reinforcement constitutive law
+    # sig_s_eps = sp.Piecewise(
+    #     (-E_s * eps_sy, eps < -eps_sy),
+    #     (E_s * eps, eps < eps_sy),
+    #     (E_s * eps_sy, eps >= eps_sy)
+    # )
+
+    # # Reinforcement constitutive law
     sig_s_eps = sp.Piecewise(
-        (-E_s * eps_sy, eps < -eps_sy),
+        (0, eps < 0),
         (E_s * eps, eps < eps_sy),
-        (E_s * eps_sy, eps >= eps_sy)
+        (E_s * eps_sy - E_s * (eps-eps_sy), eps < 2*eps_sy),
+        (0, True)
     )
 
     # ----------------------------------------------------------------
@@ -108,18 +119,33 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     # Concrete
     E_ct = tr.DelegatesTo('matrix')
-    E_cc = tr.DelegatesTo('matrix')
+    E_cc = tr.Float(20000, MAT=True) # tr.DelegatesTo('matrix')
     eps_cr = tr.DelegatesTo('matrix')
-    eps_cy = tr.DelegatesTo('matrix')
-    eps_cu = tr.DelegatesTo('matrix')
     eps_tu = tr.DelegatesTo('matrix')
     mu = tr.DelegatesTo('matrix')
+
+    # eps_cy = tr.DelegatesTo('matrix')
+    # eps_cu = tr.DelegatesTo('matrix')
+
+    eps_cy = tr.Property()
+    def _set_eps_cy(self, value):
+        self.matrix.eps_cy = value
+    def _get_eps_cy(self):
+        return -np.fabs(self.matrix.eps_cy)
+
+    eps_cu = tr.Property()
+    def _set_eps_cu(self, value):
+        self.matrix.eps_cu = value
+    def _get_eps_cu(self):
+        return -np.fabs(self.matrix.eps_cu)
 
     # Reinforcement
     z_j = tr.DelegatesTo('reinforcement')
     A_j = tr.DelegatesTo('reinforcement')
     E_j = tr.DelegatesTo('reinforcement')
     eps_sy_j = tr.DelegatesTo('reinforcement')
+
+    DEPSTR = '+BC, +MAT, cross_section_shape.+GEO, matrix.+MAT, reinforcement.+MAT'
 
     n_m = Int(100, DSC=True)
 
@@ -178,7 +204,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     # SOLVER: Get eps_bot to render zero force
 
-    eps_bot_t = tr.Property(depends_on='+BC')
+    eps_bot_t = tr.Property(depends_on=DEPSTR)
     r'''Resolve the tensile strain to get zero normal force for the prescribed curvature'''
 
     @tr.cached_property
@@ -189,7 +215,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     # POSTPROCESSING
 
-    kappa_cr = tr.Property(depends_on='+BC')
+    kappa_cr = tr.Property(depends_on=DEPSTR)
     '''Curvature at which a critical strain is attained at the eps_bot'''
 
     @tr.cached_property
@@ -198,7 +224,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
                    0.0000001 + np.zeros_like(self.eps_cr), tol=1e-10)
         return res.x
 
-    M_s_t = tr.Property(depends_on='+BC')
+    M_s_t = tr.Property(depends_on=DEPSTR)
     '''Bending moment (steel)
     '''
 
@@ -213,7 +239,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         )
         return -np.einsum('j,tj,j->t', self.A_j, sig_z_tj, self.z_j)
 
-    M_c_t = tr.Property(depends_on='+BC')
+    M_c_t = tr.Property(depends_on=DEPSTR)
     '''Bending moment (concrete)
     '''
 
@@ -224,15 +250,16 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         N_z_tm = b_z_m * self.symb.get_sig_c_z(self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis], z_tm)
         return -np.trapz(N_z_tm * z_tm, x=z_tm, axis=-1)
 
-    M_t = tr.Property(depends_on='+BC')
+    M_t = tr.Property(depends_on=DEPSTR)
     '''Bending moment
     '''
 
     @tr.cached_property
     def _get_M_t(self):
+        print('eval')
         return self.M_c_t + self.M_s_t
 
-    N_s_tj = tr.Property(depends_on='+BC')
+    N_s_tj = tr.Property(depends_on=DEPSTR)
     '''Normal forces (steel)
     '''
 
@@ -240,7 +267,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def _get_N_s_tj(self):
         return self.get_N_s_tj(self.kappa_t, self.eps_bot_t)
 
-    eps_tm = tr.Property(depends_on='+BC')
+    eps_tm = tr.Property(depends_on=DEPSTR)
     '''strain profiles
     '''
 
@@ -249,7 +276,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         return self.get_eps_z(self.kappa_t[:, np.newaxis],
                               self.eps_bot_t[:, np.newaxis], self.z_m[np.newaxis, :])
 
-    sig_tm = tr.Property(depends_on='+BC')
+    sig_tm = tr.Property(depends_on=DEPSTR)
     '''strain profiles
     '''
 
@@ -260,7 +287,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
             self.z_m[np.newaxis, :]
         )
 
-    M_norm = tr.Property()
+    M_norm = tr.Property(depends_on=DEPSTR)
     '''
     '''
 
@@ -276,7 +303,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def _get_kappa_norm(self):
         return self.kappa_cr
 
-    inv_M_kappa = tr.Property(depends_on='+BC')
+    inv_M_kappa = tr.Property(depends_on=DEPSTR)
     '''Return the inverted data points
     '''
     @tr.cached_property

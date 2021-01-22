@@ -113,7 +113,6 @@ class PulloutHist(Hist, bu.InteractiveModel, Vis2D):
         '''
         idx = self.get_time_idx(self.t_slider)
         sig_Ems = self.get_sig_tEms(idx)
-        print(sig_Ems.shape)
         return sig_Ems[..., 1].flatten()
 
     def get_eps_tEms(self, idx = slice(None)):
@@ -146,11 +145,7 @@ class PulloutHist(Hist, bu.InteractiveModel, Vis2D):
                 key: np.array([Eps[key] for i, Eps in enumerate(Eps_t)], dtype=np.float_)
                 for key in keys
             }
-        print('eps', eps_tEms.shape)
-        for key, Eps_D in Eps_Dt.items():
-            print('eps', key, Eps_D.shape)
         sig_tEms, _ = txdomain.tmodel.get_corr_pred(eps_tEms, t_n1, **Eps_Dt)
-        print('sig', sig_tEms.shape)
         # if reduce_dim:
         #     sig_tEms = sig_tEms[0,...]
         return sig_tEms
@@ -367,7 +362,7 @@ class PulloutHist(Hist, bu.InteractiveModel, Vis2D):
         ax_dG_t = ax_G_t.twinx()
         return ax_geo, ax_Pw, ax_sig, ax_sf, ax_G_t, ax_dG_t
 
-    def update_plot(self, axes):
+    def update_plot2(self, axes):
         if len(self.U_t) == 0:
             return
         ax_geo, ax_Pw, ax_sig, ax_sf, ax_G_t, ax_dG_t = axes
@@ -378,6 +373,22 @@ class PulloutHist(Hist, bu.InteractiveModel, Vis2D):
         self.plot_G_t(ax_G_t)
         self.plot_dG_t(ax_dG_t)
 
+    def update_plot(self, axes):
+        if len(self.U_t) == 0:
+            return
+        ax_geo, ax_Pw, ax_sig, ax_sf, ax_G_t, ax_dG_t = axes
+        self.plot_geo(ax_geo)
+        self.plot_Pw(ax_Pw)
+#        self.plot_sig_p(ax_sig)
+        self.plot_s(ax_sig)
+        self.plot_sf(ax_sf)
+        # self.plot_G_t(ax_G_t)
+        # self.plot_dG_t(ax_dG_t)
+        self.tstep_source.mats_eval.bs_law.replot()
+        self.tstep_source.mats_eval.bs_law.mpl_plot(ax_G_t)
+        ax_G_t.set_xlabel(r'$s$ [mm]')
+        ax_G_t.set_ylabel(r'$\tau$ [MPa]')
+#        self.tstep_source.mats_eval.plot(ax_G_t)
 
 class CrossSection(BMCSLeafNode, RInputRecord):
     '''Parameters of the pull-out cross section
@@ -459,7 +470,7 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
     name = 'Pullout'
     hist_type = PulloutHist
 
-    node_name = 'pull out simulation'
+    node_name = 'Pull out simulation'
 
     tree_node_list = List([])
 

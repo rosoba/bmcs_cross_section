@@ -26,7 +26,7 @@ class CrossSectionShapeBase(InteractiveModel):
     """"This class describes the geometry of the cross section."""
     name = 'Cross Section Shape'
 
-    H = Float(400)
+    H = Float(400, GEO=True)
 
     ipw_view = View(
         Item('H', minmax=(10, 3000), latex='H [mm]')
@@ -36,7 +36,7 @@ class CrossSectionShapeBase(InteractiveModel):
 @tr.provides(ICrossSectionShape)
 class Rectangle(CrossSectionShapeBase):
 
-    B = Float(200)
+    B = Float(200, GEO=True)
 
     ipw_view = View(
         *CrossSectionShapeBase.ipw_view.content,        # this will add View Items of the base class CrossSectionShapeBase
@@ -71,7 +71,7 @@ class Circle(CrossSectionShapeBase):
     # TODO->Rostia: provide input field instead minmax range
     # H from the base class is used as the D, for the diameter of the circular section
 
-    H = Float(250)
+    H = Float(250, GEO=True)
 
     ipw_view = View(
         Item('H', minmax=(10, 3000), latex='D [mm]'),
@@ -106,9 +106,9 @@ class Circle(CrossSectionShapeBase):
 @tr.provides(ICrossSectionShape)
 class TShape(CrossSectionShapeBase):
 
-    B_f = Float(200, input=True)
-    B_w = Float(50, input=True)
-    H_w = Float(150, input=True)
+    B_f = Float(200, GEO=True)
+    B_w = Float(50, GEO=True)
+    H_w = Float(150, GEO=True)
 
     ipw_view = View(
         *CrossSectionShapeBase.ipw_view.content,
