@@ -351,22 +351,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     M_scale = Float(1e+6)
 
-    def plot(self, ax1, ax2, ax22, ax3):
-        idx = self.idx
-        ax1.plot(self.kappa_t, self.M_t / self.M_scale)
-        ax1.set_ylabel('Moment [kNm]')
-        ax1.set_xlabel('Curvature [mm$^{-1}$]')
-        ax1.plot(self.kappa_t[idx], self.M_t[idx] / self.M_scale, marker='o')
-        ax2.barh(self.z_j, self.N_s_tj[idx, :], height=6, color='red', align='center')
-        # ax2.plot(self.N_s_tj[idx, :], self.z_j, color='red')
-        # print('Z', self.z_j)
-        # print(self.N_s_tj[idx, :])
-        # ax2.fill_between(eps_z_arr[idx,:], z_arr, 0, alpha=0.1);
-        #        ax3.plot(self.eps_tm[idx, :], self.z_m, color='k', linewidth=0.8)
-        ax22.plot(self.sig_tm[idx, :], self.z_m)
-        ax22.axvline(0, linewidth=0.8, color='k')
-        ax22.fill_betweenx(self.z_m, self.sig_tm[idx, :], 0, alpha=0.1)
-        mpl_align_xaxis(ax2, ax22)
+    def plot(self, ax1, ax2, ax3):
+        self.plot_mk_and_stress_profile(ax1, ax2)
 
         M, kappa = self.inv_M_kappa
         ax3.plot(M / self.M_scale, kappa)
@@ -376,18 +362,15 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     @staticmethod
     def subplots(fig):
         ax1, ax2, ax3 = fig.subplots(1, 3)
-        ax22 = ax2.twiny()
-        return ax1, ax2, ax22, ax3
+        return ax1, ax2, ax3
 
     def update_plot(self, axes):
         self.plot(*axes)
 
     def plot_mk_and_stress_profile(self, ax1, ax2):
+        self.plot_mk(ax1)
+
         idx = self.idx
-        ax1.plot(self.kappa_t, self.M_t / self.M_scale, color='blue', label='bmcs_cs_mkappa', alpha=0.5)
-        ax1.set_ylabel('Moment [kNm]')
-        ax1.set_xlabel('Curvature [mm$^{-1}$]')
-        ax1.legend()
         ax1.plot(self.kappa_t[idx], self.M_t[idx] / self.M_scale, color='orange', marker='o')
         ax2.barh(self.z_j, self.N_s_tj[idx, :], height=6, color='red', align='center')
 
@@ -398,7 +381,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         mpl_align_xaxis(ax2, ax22)
 
     def plot_mk(self, ax1):
-        ax1.plot(self.kappa_t, self.M_t / self.M_scale, color='blue', label = 'bmcs_cs_mkappa', alpha=0.5)
+        ax1.plot(self.kappa_t, self.M_t / self.M_scale, label='bmcs_cs_mkappa')
         ax1.set_ylabel('Moment [kNm]')
         ax1.set_xlabel('Curvature [mm$^{-1}$]')
         ax1.legend()
