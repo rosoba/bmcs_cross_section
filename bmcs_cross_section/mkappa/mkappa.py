@@ -22,8 +22,8 @@ class MKappaSymbolic(SymbExpr):
     # Symbolic derivation of expressions
     # -------------------------------------------------------------------------
     # kappa = sp.Symbol('kappa', real=True, nonpositive=True)
-    # eps_top = sp.symbols('varepsilon_top', real=True, nonpositive=True)
-    # eps_bot = sp.symbols('varepsilon_bot', real=True, nonnegative=True)
+    # eps_top = sp.symbols('varepsilon_top', real=True) # , nonpositive=True)
+    # eps_bot = sp.symbols('varepsilon_bot', real=True, nonnegative =True)
     kappa = sp.Symbol('kappa', real=True)
     eps_top = sp.symbols('varepsilon_top', real=True)
     eps_bot = sp.symbols('varepsilon_bot', real=True)
@@ -57,7 +57,7 @@ class MKappaSymbolic(SymbExpr):
         (E_cc * eps, eps < 0),
         (E_ct * eps, eps < eps_cr),
         (mu * E_ct * eps_cr, eps < eps_tu),
-        (0, eps >= eps_tu)
+        (0, True) #  eps >= eps_tu)
     )
 
     # Stress over the cross section height
@@ -66,7 +66,6 @@ class MKappaSymbolic(SymbExpr):
 
     # Substitute eps_top to get sig as a function of (kappa, eps_bot, z)
     sig_c_z = sig_c_z_.subs(eps_top_solved)
-
 
     # Reinforcement constitutive law
     sig_s_eps = tr.Property()
@@ -96,8 +95,9 @@ class MKappaSymbolic(SymbExpr):
 
     symb_expressions = [
         ('eps_z', ('kappa', 'eps_bot', 'z')),
-        ('sig_c_z', ('kappa', 'eps_bot', 'z')),
-        ('sig_s_eps', ('eps', 'E_s', 'eps_sy'))
+        ('sig_c_eps', ('eps',)),
+#        ('sig_c_z', ('kappa', 'eps_bot', 'z')),
+        ('sig_s_eps', ('eps', 'E_s', 'eps_sy')),
     ]
 
 
@@ -194,12 +194,18 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         N_s_tj = np.einsum('j,tj->tj', self.A_j, sig_s_tj)
         return N_s_tj
 
+    def get_sig_c_z(self, kappa_t, eps_bot_t, z_tm):
+        eps_z = self.symb.get_eps_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
+        sig_c_z = self.symb.get_sig_c_eps(eps_z)
+        return sig_c_z
+
     # Normal force in concrete (tension and compression)
     def get_N_c_t(self, kappa_t, eps_bot_t):
         z_tm = self.z_m[np.newaxis, :]
         b_z_m = self.cross_section_shape.get_b(z_tm)
-        N_z_tm = b_z_m * self.symb.get_sig_c_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
-        return np.trapz(N_z_tm, x=z_tm, axis=-1)
+        #N_z_tm1 = b_z_m * self.symb.get_sig_c_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
+        N_z_tm2 = b_z_m * self.get_sig_c_z(kappa_t, eps_bot_t, z_tm)
+        return np.trapz(N_z_tm2, x=z_tm, axis=-1)
 
     def get_N_t(self, kappa_t, eps_bot_t):
         N_s_t = np.sum(self.get_N_s_tj(kappa_t, eps_bot_t), axis=-1)
@@ -215,6 +221,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def _get_eps_bot_t(self):
         res = root(lambda eps_bot_t: self.get_N_t(self.kappa_t, eps_bot_t),
                    0.0000001 + np.zeros_like(self.kappa_t), tol=1e-6)
+        if not res.success:
+            print('No solution', res.message)
         return res.x
 
     # POSTPROCESSING
@@ -226,6 +234,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def _get_kappa_cr(self):
         res = root(lambda kappa: self.get_N_t(kappa, self.eps_cr),
                    0.0000001 + np.zeros_like(self.eps_cr), tol=1e-10)
+        if not res.success:
+            print('No solution', res.message)
         return res.x
 
     M_s_t = tr.Property(depends_on=DEPSTR)
@@ -251,8 +261,9 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def _get_M_c_t(self):
         z_tm = self.z_m[np.newaxis, :]
         b_z_m = self.cross_section_shape.get_b(z_tm)
-        N_z_tm = b_z_m * self.symb.get_sig_c_z(self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis], z_tm)
-        return -np.trapz(N_z_tm * z_tm, x=z_tm, axis=-1)
+        #N_z_tm1 = b_z_m * self.symb.get_sig_c_z(self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis], z_tm)
+        N_z_tm2 = b_z_m * self.get_sig_c_z(self.kappa_t, self.eps_bot_t, z_tm)
+        return -np.trapz(N_z_tm2 * z_tm, x=z_tm, axis=-1)
 
     M_t = tr.Property(depends_on=DEPSTR)
     '''Bending moment
@@ -260,7 +271,6 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     @tr.cached_property
     def _get_M_t(self):
-        print('eval')
         return self.M_c_t + self.M_s_t
 
     N_s_tj = tr.Property(depends_on=DEPSTR)
@@ -286,9 +296,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     @tr.cached_property
     def _get_sig_tm(self):
-        return self.symb.get_sig_c_z(
-            self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis],
-            self.z_m[np.newaxis, :]
+        return self.get_sig_c_z(
+            self.kappa_t, self.eps_bot_t, self.z_m[np.newaxis, :]
         )
 
     M_norm = tr.Property(depends_on=DEPSTR)
@@ -336,7 +345,6 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         return np.interp(M, M_I, kappa_I)
 
     def plot_norm(self, ax1, ax2):
-        print('plot norm')
         idx = self.idx
         ax1.plot(self.kappa_t / self.kappa_norm, self.M_t / self.M_norm)
         ax1.plot(self.kappa_t[idx] / self.kappa_norm, self.M_t[idx] / self.M_norm, marker='o')
