@@ -7,6 +7,12 @@ from bmcs_utils.api import \
     InteractiveModel, Item, View, mpl_align_xaxis, \
     SymbExpr, InjectSymbExpr, Float, Int, FloatRangeEditor
 
+import enum
+
+
+class ReinforcementType(enum.Enum):
+    STEEL, CARBON = range(2)
+
 
 class MKappaSymbolic(SymbExpr):
     """This class handles all the symbolic calculations
@@ -21,8 +27,8 @@ class MKappaSymbolic(SymbExpr):
     kappa = sp.Symbol('kappa', real=True)
     eps_top = sp.symbols('varepsilon_top', real=True)
     eps_bot = sp.symbols('varepsilon_bot', real=True)
-    b, h, z = sp.symbols('b, h, z', nonnegative=True)
-    eps_sy, E_s = sp.symbols('varepsilon_sy, E_s')
+    b, h, z = sp.symbols('b, h, z', real=True, nonnegative=True)
+    eps_sy, E_s = sp.symbols('varepsilon_sy, E_s', real=True, nonnegative=True)
     eps = sp.Symbol('varepsilon', real=True)
 
     # -------------------------------------------------------------------------
@@ -61,20 +67,27 @@ class MKappaSymbolic(SymbExpr):
     # Substitute eps_top to get sig as a function of (kappa, eps_bot, z)
     sig_c_z = sig_c_z_.subs(eps_top_solved)
 
-    # Reinforcement constitutive law
-    # sig_s_eps = sp.Piecewise(
-    #     (-E_s * eps_sy, eps < -eps_sy),
-    #     (E_s * eps, eps < eps_sy),
-    #     (E_s * eps_sy, eps >= eps_sy)
-    # )
 
-    # # Reinforcement constitutive law
-    sig_s_eps = sp.Piecewise(
-        (0, eps < 0),
-        (E_s * eps, eps < eps_sy),
-        (E_s * eps_sy - E_s * (eps-eps_sy), eps < 2*eps_sy),
-        (0, True)
-    )
+    # Reinforcement constitutive law
+    sig_s_eps = tr.Property()
+
+    def _get_sig_s_eps(self):
+        if self.model.reinforcement_type == ReinforcementType.STEEL:
+            sig_s_eps = sp.Piecewise(
+                (-self.E_s * self.eps_sy, self.eps < -self.eps_sy),
+                (self.E_s * self.eps, self.eps < self.eps_sy),
+                (self.E_s * self.eps_sy, self.eps >= self.eps_sy)
+            )
+        elif self.model.reinforcement_type == ReinforcementType.CARBON:
+            sig_s_eps = sp.Piecewise(
+                (0, self.eps < 0),
+                (self.E_s * self.eps, self.eps < self.eps_sy),
+                (self.E_s * self.eps_sy - self.E_s * (self.eps - self.eps_sy), self.eps < 2 * self.eps_sy),
+                (0, True)
+            )
+        else:
+            raise NameError('There\'s no reinforcement type with the name ' + self.model.reinforcement_typ)
+        return sig_s_eps
 
     # ----------------------------------------------------------------
     # SymbExpr protocol: Parameter names to be fetched from the model
@@ -91,6 +104,9 @@ class MKappaSymbolic(SymbExpr):
 class MKappa(InteractiveModel, InjectSymbExpr):
     """Class returning the moment curvature relationship."""
     name = 'Moment-Curvature'
+
+    reinforcement_type = ReinforcementType.STEEL
+
     ipw_view = View(
         Item('low_kappa', latex=r'\text{Low}~\kappa'),
         Item('high_kappa', latex=r'\text{High}~\kappa'),
@@ -124,20 +140,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     eps_tu = tr.DelegatesTo('matrix')
     mu = tr.DelegatesTo('matrix')
 
-    # eps_cy = tr.DelegatesTo('matrix')
-    # eps_cu = tr.DelegatesTo('matrix')
-
-    eps_cy = tr.Property()
-    def _set_eps_cy(self, value):
-        self.matrix.eps_cy = value
-    def _get_eps_cy(self):
-        return -np.fabs(self.matrix.eps_cy)
-
-    eps_cu = tr.Property()
-    def _set_eps_cu(self, value):
-        self.matrix.eps_cu = value
-    def _get_eps_cu(self):
-        return -np.fabs(self.matrix.eps_cu)
+    eps_cy = tr.DelegatesTo('matrix')
+    eps_cu = tr.DelegatesTo('matrix')
 
     # Reinforcement
     z_j = tr.DelegatesTo('reinforcement')
@@ -178,7 +182,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def _get_kappa_t(self):
         return np.linspace(self.low_kappa, self.high_kappa, self.n_kappa)
 
-    # Normal force
+    # Normal force in steel (tension and compression)
     def get_N_s_tj(self, kappa_t, eps_bot_t):
         eps_z_tj = self.symb.get_eps_z(
             kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis],
@@ -190,11 +194,11 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         N_s_tj = np.einsum('j,tj->tj', self.A_j, sig_s_tj)
         return N_s_tj
 
+    # Normal force in concrete (tension and compression)
     def get_N_c_t(self, kappa_t, eps_bot_t):
         z_tm = self.z_m[np.newaxis, :]
         b_z_m = self.cross_section_shape.get_b(z_tm)
         N_z_tm = b_z_m * self.symb.get_sig_c_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
-        test = self.symb.get_sig_c_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
         return np.trapz(N_z_tm, x=z_tm, axis=-1)
 
     def get_N_t(self, kappa_t, eps_bot_t):

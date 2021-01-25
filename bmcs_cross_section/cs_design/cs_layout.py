@@ -67,11 +67,24 @@ class Matrix(InteractiveModel):
     eps_cr = Float(0.001)
     """Matrix cracking strain"""
 
-    eps_cy = Float(-0.003)
+    _eps_cy = Float(-0.003)
     """Matrix compressive yield strain"""
 
-    eps_cu = Float(-0.01)
+    _eps_cu = Float(-0.01)
     """Ultimate matrix compressive strain"""
+
+    # Enforcing negative values for eps_cu and eps_cy
+    eps_cy = tr.Property()
+    def _set_eps_cy(self, value):
+        self._eps_cy = value
+    def _get_eps_cy(self):
+        return -np.fabs(self._eps_cy)
+
+    eps_cu = tr.Property()
+    def _set_eps_cu(self, value):
+        self._eps_cu = value
+    def _get_eps_cu(self):
+        return -np.fabs(self._eps_cu)
 
     eps_tu = Float(0.003)
     """Ultimate matrix tensile strain"""
