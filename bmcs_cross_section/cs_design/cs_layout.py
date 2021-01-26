@@ -1,7 +1,7 @@
 import numpy as np
 import traits.api as tr
 from bmcs_utils.api import \
-    InteractiveModel, Item, View, Float, Int
+    InteractiveModel, Item, View, Float, Int, FloatEditor, Array
 
 
 class Reinforcement(InteractiveModel):
@@ -9,26 +9,27 @@ class Reinforcement(InteractiveModel):
 
     # TODO->Saeed: prepare the variables for InteractiveModel (ipw_view and so on...)
 
-    z_j = tr.Array(np.float_, value=[50])
+    z_j = Array(np.float_, value=[50], MAT=True)
     """z positions of reinforcement layers"""
 
-    A_j = tr.Array(np.float_, value=[3 * np.pi * (16 / 2.) ** 2])
+    A_j = Array(np.float_, value=[3 * np.pi * (16 / 2.) ** 2], MAT=True)
     """cross section area of reinforcement layers"""
 
-    E_j = tr.Array(np.float_, value=[210000])
+    E_j = Array(np.float_, value=[210000], MAT=True)
     """E modulus of reinforcement layers"""
 
-    eps_sy_j = tr.Array(np.float_, value=[500. / 210000.])
+    eps_sy_j = Array(np.float_, value=[500. / 210000.], MAT=True)
     """Steel yield strain"""
 
     ipw_view = View(
-
-        Item('z_j', latex='z_{j} \mathrm{[mm]}'),
-        Item('x_j', latex='x_{j} \mathrm{[mm]}'),
-        Item('A_j', latex='A_{j} \mathrm{[mm^2]}'),
-        Item('E_j', latex='E_{j} \mathrm{[MPa]}'),
-        Item('eps_sy_j', latex='eps_{sy_j} \mathrm{[-]}'),
+        Item('z_j'),       # latex='z_{j} \mathrm{[mm]}'),
+        Item('A_j'),        # latex='A_{j} \mathrm{[mm^2]}'),
+        Item('E_j'),      # latex='E_{j} \mathrm{[MPa]}'),
+        Item('eps_sy_j'),  # latex='eps_{sy_j} \mathrm{[-]}'),
     )
+
+    def update_plot(self, axes):
+        pass
 
 class Fabric(Reinforcement):
     """Reinforcement with a grid structure
@@ -58,50 +59,39 @@ class Bar(Reinforcement):
 class Matrix(InteractiveModel):
     name = 'Matrix'
 
-    E_ct = Float(24000)
-    """E modulus of matrix on tension"""
-
-    E_cc = Float(25000)
-    """E modulus of matrix on compression"""
-
-    eps_cr = Float(0.001)
-    """Matrix cracking strain"""
-
-    _eps_cy = Float(-0.003)
-    """Matrix compressive yield strain"""
-
-    _eps_cu = Float(-0.01)
-    """Ultimate matrix compressive strain"""
+    E_ct = Float(24000, MAT=True, desc='E modulus of matrix on tension')
+    E_cc = Float(25000, MAT=True, desc='E modulus of matrix on compression')
+    eps_cr = Float(0.001, MAT=True, desc='Matrix cracking strain')
+    _eps_cy = Float(-0.003, MAT=True)
+    _eps_cu = Float(-0.01, MAT=True)
 
     # Enforcing negative values for eps_cu and eps_cy
-    eps_cy = tr.Property()
+    eps_cy = tr.Property(desc='Matrix compressive yield strain')
     def _set_eps_cy(self, value):
         self._eps_cy = value
     def _get_eps_cy(self):
         return -np.fabs(self._eps_cy)
 
-    eps_cu = tr.Property()
+    eps_cu = tr.Property(desc='Ultimate matrix compressive strain')
     def _set_eps_cu(self, value):
         self._eps_cu = value
     def _get_eps_cu(self):
         return -np.fabs(self._eps_cu)
 
-    eps_tu = Float(0.003)
-    """Ultimate matrix tensile strain"""
+    eps_tu = Float(0.003, MAT=True, desc='Ultimate matrix tensile strain')
 
-    mu = Float(0.33)
-    """Post crack tensile strength ratio (represents how much strength is left after the crack because of short steel 
-    fibers in the mixture)"""
+    mu = Float(0.33, MAT=True, desc='Post crack tensile strength ratio (represents how much strength is left after \
+                                    the crack because of short steel fibers in the mixture)')
 
     ipw_view = View(
-        Item('E_ct', latex='E_{ct} [N/mm^2]'),
-        Item('E_cc', latex='E_{cc} [N/mm^2]'),
-        Item('eps_cr'),
-        Item('eps_cy'),
-        Item('eps_cu'),
-        Item('eps_tu'),
-        Item('mu')
-    )
+            Item('E_ct', latex='E_{ct} [N/mm^2]'),
+            Item('E_cc', latex='E_{cc} [N/mm^2]'),
+            Item('eps_cr', latex=r'\varepsilon_{cr}'),
+            Item('eps_cy', latex=r'\varepsilon_{cy}', editor=FloatEditor()),
+            Item('eps_cu', latex=r'\varepsilon_{cu}', editor=FloatEditor()),
+            Item('eps_tu', latex=r'\varepsilon_{tu}'),
+            Item('mu', latex=r'\mu')
+        )
 
     def update_plot(self, axes):
         pass

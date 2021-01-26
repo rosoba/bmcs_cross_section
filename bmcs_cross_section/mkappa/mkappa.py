@@ -5,7 +5,7 @@ from bmcs_cross_section.cs_design import CrossSectionDesign
 from scipy.optimize import root
 from bmcs_utils.api import \
     InteractiveModel, Item, View, mpl_align_xaxis, \
-    SymbExpr, InjectSymbExpr, Float, Int, FloatRangeEditor
+    SymbExpr, InjectSymbExpr, Float, Int, FloatRangeEditor, FloatEditor
 
 import enum
 
@@ -95,8 +95,8 @@ class MKappaSymbolic(SymbExpr):
 
     symb_expressions = [
         ('eps_z', ('kappa', 'eps_bot', 'z')),
-        ('sig_c_eps', ('eps',)),
-#        ('sig_c_z', ('kappa', 'eps_bot', 'z')),
+        # ('sig_c_eps', ('eps',)), # the new implementation from [RC]
+       ('sig_c_z', ('kappa', 'eps_bot', 'z')),
         ('sig_s_eps', ('eps', 'E_s', 'eps_sy')),
     ]
 
@@ -108,8 +108,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     reinforcement_type = ReinforcementType.STEEL
 
     ipw_view = View(
-        Item('low_kappa', latex=r'\text{Low}~\kappa'),
-        Item('high_kappa', latex=r'\text{High}~\kappa'),
+        Item('low_kappa', latex=r'\text{Low}~\kappa', editor=FloatEditor(step=0.00001)),
+        Item('high_kappa', latex=r'\text{High}~\kappa', editor=FloatEditor(step=0.00001)),
         Item('n_kappa', latex='n_{\kappa}'),
         Item('n_m', latex='n_m \mathrm{[mm]}'),
         Item('kappa_slider', latex='\kappa',
@@ -135,7 +135,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     # Concrete
     E_ct = tr.DelegatesTo('matrix')
-    E_cc = tr.Float(20000, MAT=True) # tr.DelegatesTo('matrix')
+    E_cc = tr.DelegatesTo('matrix')
     eps_cr = tr.DelegatesTo('matrix')
     eps_tu = tr.DelegatesTo('matrix')
     mu = tr.DelegatesTo('matrix')
@@ -194,6 +194,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         N_s_tj = np.einsum('j,tj->tj', self.A_j, sig_s_tj)
         return N_s_tj
 
+    # Alternative implementation from [RC]
     def get_sig_c_z(self, kappa_t, eps_bot_t, z_tm):
         eps_z = self.symb.get_eps_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
         sig_c_z = self.symb.get_sig_c_eps(eps_z)
@@ -203,9 +204,9 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def get_N_c_t(self, kappa_t, eps_bot_t):
         z_tm = self.z_m[np.newaxis, :]
         b_z_m = self.cross_section_shape.get_b(z_tm)
-        #N_z_tm1 = b_z_m * self.symb.get_sig_c_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
-        N_z_tm2 = b_z_m * self.get_sig_c_z(kappa_t, eps_bot_t, z_tm)
-        return np.trapz(N_z_tm2, x=z_tm, axis=-1)
+        N_z_tm1 = b_z_m * self.symb.get_sig_c_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
+        # N_z_tm2 = b_z_m * self.get_sig_c_z(kappa_t, eps_bot_t, z_tm)
+        return np.trapz(N_z_tm1, x=z_tm, axis=-1)
 
     def get_N_t(self, kappa_t, eps_bot_t):
         N_s_t = np.sum(self.get_N_s_tj(kappa_t, eps_bot_t), axis=-1)
@@ -261,9 +262,9 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def _get_M_c_t(self):
         z_tm = self.z_m[np.newaxis, :]
         b_z_m = self.cross_section_shape.get_b(z_tm)
-        #N_z_tm1 = b_z_m * self.symb.get_sig_c_z(self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis], z_tm)
-        N_z_tm2 = b_z_m * self.get_sig_c_z(self.kappa_t, self.eps_bot_t, z_tm)
-        return -np.trapz(N_z_tm2 * z_tm, x=z_tm, axis=-1)
+        N_z_tm1 = b_z_m * self.symb.get_sig_c_z(self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis], z_tm)
+        # N_z_tm2 = b_z_m * self.get_sig_c_z(self.kappa_t, self.eps_bot_t, z_tm)
+        return -np.trapz(N_z_tm1 * z_tm, x=z_tm, axis=-1)
 
     M_t = tr.Property(depends_on=DEPSTR)
     '''Bending moment
@@ -296,9 +297,14 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     @tr.cached_property
     def _get_sig_tm(self):
-        return self.get_sig_c_z(
-            self.kappa_t, self.eps_bot_t, self.z_m[np.newaxis, :]
+        return self.symb.get_sig_c_z(
+            self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis],
+            self.z_m[np.newaxis, :]
         )
+        # the new implementation
+        # return self.get_sig_c_z(
+        #     self.kappa_t, self.eps_bot_t, self.z_m[np.newaxis, :]
+        # )
 
     M_norm = tr.Property(depends_on=DEPSTR)
     '''
@@ -351,7 +357,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         ax2.barh(self.z_j, self.N_s_tj[idx, :], height=2, color='red', align='center')
         # ax2.fill_between(eps_z_arr[idx,:], z_arr, 0, alpha=0.1);
         ax3 = ax2.twiny()
-        #        ax3.plot(self.eps_tm[idx, :], self.z_m, color='k', linewidth=0.8)
+        #  ax3.plot(self.eps_tm[idx, :], self.z_m, color='k', linewidth=0.8)
         ax3.plot(self.sig_tm[idx, :], self.z_m)
         ax3.axvline(0, linewidth=0.8, color='k')
         ax3.fill_betweenx(self.z_m, self.sig_tm[idx, :], 0, alpha=0.1)
@@ -361,9 +367,12 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     def plot(self, ax1, ax2, ax3):
         self.plot_mk_and_stress_profile(ax1, ax2)
+        try:
+            M, kappa = self.inv_M_kappa
+            ax3.plot(M / self.M_scale, kappa)
+        except ValueError:
+            print('M inverse has not succeeded, the M-Kappa solution may have failed due to a wrong kappa range!')
 
-        M, kappa = self.inv_M_kappa
-        ax3.plot(M / self.M_scale, kappa)
         ax3.set_xlabel('Moment [kNm]')
         ax3.set_ylabel('Curvature[mm$^{-1}$]')
 
