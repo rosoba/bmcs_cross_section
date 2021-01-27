@@ -8,14 +8,14 @@ Created on 12.01.2016
 '''
 import copy
 import bmcs_utils.api as bu
-from ibvpy.time_functions import LoadingScenario
+from ibvpy.tfunction import LoadingScenario
 from ibvpy.bcond import BCDof
 from ibvpy.fets.fets1D5 import FETS1D52ULRH
-from ibvpy.mats import IMATSEval
-from ibvpy.mats.mats1D5.vmats1D5_bondslip1D import \
+from ibvpy.tmodel import IMATSEval
+from ibvpy.tmodel.mats1D5.vmats1D5_bondslip1D import \
     MATSBondSlipMultiLinear, MATSBondSlipDP, \
     MATSBondSlipD, MATSBondSlipEP, MATSBondSlipFatigue
-from ibvpy.sim.api import \
+from ibvpy.api import \
     TStepBC, Hist, XDomainFEInterface1D
 from ibvpy.view.reporter import RInputRecord
 from scipy import interpolate as ip
@@ -83,8 +83,8 @@ class PulloutHist(Hist, bu.InteractiveModel, Vis2D):
         idx = self.get_time_idx(self.t_slider)
         U = self.U_t[idx]
         state = self.tstep_source.fe_domain[0]
-        dof_Epia = state.xdomain.o_Epia
-        fets = state.xdomain.fets
+        dof_Epia = state.xmodel.o_Epia
+        fets = state.xmodel.fets
         u_Epia = U[dof_Epia]
         N_mi = fets.N_mi
         u_Emap = np.einsum('mi,Epia->Emap', N_mi, u_Epia)
@@ -119,7 +119,7 @@ class PulloutHist(Hist, bu.InteractiveModel, Vis2D):
         '''Epsilon in the components
         '''
         txdomain = self.tstep_source.fe_domain[0]
-        return txdomain.xdomain.map_U_to_field(self.U_t[idx])
+        return txdomain.xmodel.map_U_to_field(self.U_t[idx])
 
     def get_sig_tEms(self, idx = slice(None)):
         '''Get stresses in the components
@@ -151,14 +151,14 @@ class PulloutHist(Hist, bu.InteractiveModel, Vis2D):
         return sig_tEms
 
     def get_U_bar_t(self):
-        xdomain = self.tstep_source.fe_domain[0].xdomain
-        fets = xdomain.fets
-        A = xdomain.A
+        xmodel = self.tstep_source.fe_domain[0].xmodel
+        fets = xmodel.fets
+        A = xmodel.A
         eps_tEms = self.get_eps_tEms(slice(0,None))
         sig_tEms = self.get_sig_tEms(slice(0,None))
 
         w_ip = fets.ip_weights
-        J_det = xdomain.det_J_Em
+        J_det = xmodel.det_J_Em
         U_bar_t = 0.5 * np.einsum('m,Em,s,tEms,tEms->t',
                                   w_ip, J_det, A, sig_tEms, eps_tEms)
         return U_bar_t
