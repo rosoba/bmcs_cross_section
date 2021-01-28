@@ -2,31 +2,45 @@ import numpy as np
 import traits.api as tr
 from bmcs_utils.api import \
     InteractiveModel, Item, View, Float, Int, FloatEditor, Array
+from traits.observation.api import trait
 
-
-class Reinforcement(InteractiveModel):
+class Reinforcement(InteractiveModel): # this should contain floats not arrays
+    # TODO: changes in the ipw interactive window doesn't reflect on mkappa
+    #  (maybe because these are lists and chaning the elements doesn't notify)
     name = 'Reinforcement'
 
-    # TODO->Saeed: prepare the variables for InteractiveModel (ipw_view and so on...)
+    # z_j = Array(np.float_, value=[50], MAT=True)
+    # """z positions of reinforcement layers"""
+    #
+    # A_j = Array(np.float_, value=[3 * np.pi * (16 / 2.) ** 2], MAT=True)
+    # """cross section area of reinforcement layers"""
+    #
+    # E_j = Array(np.float_, value=[210000], MAT=True)
+    # """E modulus of reinforcement layers"""
 
-    z_j = Array(np.float_, value=[50], MAT=True)
+    z = Float(50, MAT=True)
     """z positions of reinforcement layers"""
 
-    A_j = Array(np.float_, value=[3 * np.pi * (16 / 2.) ** 2], MAT=True)
+    A = Float(3 * np.pi * (16 / 2.) ** 2, MAT=True)
     """cross section area of reinforcement layers"""
 
-    E_j = Array(np.float_, value=[210000], MAT=True)
+    E = Float(210000, MAT=True)
     """E modulus of reinforcement layers"""
+
+    # @tr.observe(trait("A_j", notify=False).list_items()) # 'E_j_items, A_j_items, z_j_items'
+    # def reinforcement_change(self, event):
+    #     print('Reinforcement changed!')
+
 
     eps_sy_j = Array(np.float_, value=[500. / 210000.], MAT=True)
     """Steel yield strain"""
 
-    ipw_view = View(
-        Item('z_j'),       # latex='z_{j} \mathrm{[mm]}'),
-        Item('A_j'),        # latex='A_{j} \mathrm{[mm^2]}'),
-        Item('E_j'),      # latex='E_{j} \mathrm{[MPa]}'),
-        Item('eps_sy_j'),  # latex='eps_{sy_j} \mathrm{[-]}'),
-    )
+    # ipw_view = View(
+    #     Item('z_j'),       # latex='z_{j} \mathrm{[mm]}'),
+    #     Item('A_j'),        # latex='A_{j} \mathrm{[mm^2]}'),
+    #     Item('E_j'),      # latex='E_{j} \mathrm{[MPa]}'),
+    #     Item('eps_sy_j'),  # latex='eps_{sy_j} \mathrm{[-]}'),
+    # )
 
     def update_plot(self, axes):
         pass
@@ -108,9 +122,26 @@ class CrossSectionLayout(InteractiveModel):
         # print(self.trait_get(trait_names))
 
     matrix = tr.Instance(Matrix, ())
-    reinforcement = tr.Instance(Reinforcement, ())
+    reinforcement = tr.List(Reinforcement)
+    # reinforcement = tr.Instance(Reinforcement, ()) # TODO: list
     fabric = tr.Instance(Fabric, ())
     bar = tr.Instance(Bar, ())
+
+    A_j = tr.Property
+    def _get_A_j(self):
+        return np.array([r.A for r in self.reinforcement], dtype=np.float_)
+
+    E_j = tr.Property
+    def _get_E_j(self):
+        return np.array([r.E for r in self.reinforcement], dtype=np.float_)
+
+    z_j = tr.Property
+    def _get_z_j(self):
+        return np.array([r.z for r in self.reinforcement], dtype=np.float_)
+
+    eps_sy_j = tr.Property
+    def _get_eps_sy_j(self):
+        return np.array([r.eps_sy for r in self.reinforcement], dtype=np.float_)
 
     def get_shape(self):
         rec = tr.Instance(self.cs_design.cross_section_shape, ())

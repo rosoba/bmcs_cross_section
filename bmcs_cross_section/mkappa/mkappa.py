@@ -60,6 +60,16 @@ class MKappaSymbolic(SymbExpr):
         (0, True) #  eps >= eps_tu)
     )
 
+    # Alternative with descending branch instead of sudden drop for tension
+    # sig_c_eps = sp.Piecewise(
+    #     (0, eps < eps_cu),
+    #     (E_cc * eps_cy, eps < eps_cy),
+    #     (E_cc * eps, eps < 0),
+    #     (E_ct * eps, eps < eps_cr),
+    #     (mu * E_ct * eps_cr * (eps - eps_tu) / (eps_cr - eps_tu), eps < eps_tu),
+    #     (0, True) #  eps >= eps_tu)
+    # )
+
     # Stress over the cross section height
     # sig_c_z_ = sig_c_eps.subs(eps, eps_z)
     sig_c_z_ = sig_c_eps.subs(eps, eps_z_) # this was like this originally
@@ -111,7 +121,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         Item('low_kappa', latex=r'\text{Low}~\kappa', editor=FloatEditor(step=0.00001)),
         Item('high_kappa', latex=r'\text{High}~\kappa', editor=FloatEditor(step=0.00001)),
         Item('n_kappa', latex='n_{\kappa}'),
-        Item('n_m', latex='n_m \mathrm{[mm]}'),
+        Item('n_m', latex='n_m'),
         Item('kappa_slider', latex='\kappa',
              editor=FloatRangeEditor(low_name='low_kappa',
                                      high_name='high_kappa',
@@ -144,14 +154,14 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     eps_cu = tr.DelegatesTo('matrix')
 
     # Reinforcement
-    z_j = tr.DelegatesTo('reinforcement')
-    A_j = tr.DelegatesTo('reinforcement')
-    E_j = tr.DelegatesTo('reinforcement')
-    eps_sy_j = tr.DelegatesTo('reinforcement')
+    z_j = tr.DelegatesTo('cross_section_layout')
+    A_j = tr.DelegatesTo('cross_section_layout')
+    E_j = tr.DelegatesTo('cross_section_layout')
+    eps_sy_j = tr.DelegatesTo('cross_section_layout')
 
     DEPSTR = '+BC, +MAT, cross_section_shape.+GEO, matrix.+MAT, reinforcement.+MAT'
 
-    n_m = Int(100, DSC=True)
+    n_m = Int(100, DSC=True, desc='Number of discretization points along the height of the cross-section')
 
     # @todo: fix the dependency - `H` should be replaced by _GEO
     z_m = tr.Property(depends_on='n_m, H')
@@ -160,11 +170,11 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def _get_z_m(self):
         return np.linspace(0, self.H, self.n_m)
 
-    low_kappa = Float(-0.0001, BC=True)
-    high_kappa = Float(0.0001, BC=True)
+    low_kappa = Float(0.0, BC=True)
+    high_kappa = Float(0.00002, BC=True)
     n_kappa = Int(100, BC=True)
 
-    kappa_slider = Float(0)
+    kappa_slider = Float(0.0000001)
 
     idx = tr.Property(depends_on='kappa_slider')
 
@@ -197,7 +207,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     # Alternative implementation from [RC]
     def get_sig_c_z(self, kappa_t, eps_bot_t, z_tm):
         eps_z = self.symb.get_eps_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
-        sig_c_z = self.symb.get_sig_c_eps(eps_z)
+        sig_c_z = self.symb.get_sig_c_eps(eps_z)    # here we can plug in different get_sig
         return sig_c_z
 
     # Normal force in concrete (tension and compression)
