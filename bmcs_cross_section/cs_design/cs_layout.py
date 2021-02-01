@@ -32,7 +32,7 @@ class Reinforcement(InteractiveModel): # this should contain floats not arrays
     #     print('Reinforcement changed!')
 
 
-    eps_sy_j = Array(np.float_, value=[500. / 210000.], MAT=True)
+    eps_sy = Float(500. / 210000., MAT=True)
     """Steel yield strain"""
 
     # ipw_view = View(
@@ -122,8 +122,7 @@ class CrossSectionLayout(InteractiveModel):
         # print(self.trait_get(trait_names))
 
     matrix = tr.Instance(Matrix, ())
-    reinforcement = tr.List(Reinforcement)
-    # reinforcement = tr.Instance(Reinforcement, ()) # TODO: list
+    reinforcement = tr.List([Reinforcement()])
     fabric = tr.Instance(Fabric, ())
     bar = tr.Instance(Bar, ())
 

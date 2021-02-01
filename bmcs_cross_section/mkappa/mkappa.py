@@ -14,6 +14,10 @@ class ReinforcementType(enum.Enum):
     STEEL, CARBON = range(2)
 
 
+class SolutionNotFoundError(ValueError):
+    pass
+
+
 class MKappaSymbolic(SymbExpr):
     """This class handles all the symbolic calculations
     so that the class MomentCurvature doesn't use sympy ever
@@ -225,8 +229,40 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     # SOLVER: Get eps_bot to render zero force
 
+    # num_of_trials = tr.Int(30)
+
     eps_bot_t = tr.Property(depends_on=DEPSTR)
     r'''Resolve the tensile strain to get zero normal force for the prescribed curvature'''
+
+    # @tr.cached_property
+    # def _get_eps_bot_t(self):
+    #     initial_step = (self.high_kappa - self.low_kappa) / self.num_of_trials
+    #     for i in range(self.num_of_trials):
+    #         print('Solution started...')
+    #         res = root(lambda eps_bot_t: self.get_N_t(self.kappa_t, eps_bot_t),
+    #                    0.0000001 + np.zeros_like(self.kappa_t), tol=1e-6)
+    #         if res.success:
+    #             print('success high_kappa: ', self.high_kappa)
+    #             if i == 0:
+    #                 print('Note: high_kappa success from 1st try! selecting a higher value for high_kappa may produce '
+    #                       'a more reliable result!')
+    #             return res.x
+    #         else:
+    #             print('failed high_kappa: ', self.high_kappa)
+    #             self.high_kappa -= initial_step
+    #             self.kappa_t = np.linspace(self.low_kappa, self.high_kappa, self.n_kappa)
+    #
+    #     print('No solution', res.message)
+    #     return res.x
+
+    # @tr.cached_property
+    # def _get_eps_bot_t(self):
+    #     res = root(lambda eps_bot_t: self.get_N_t(self.kappa_t, eps_bot_t),
+    #                0.0000001 + np.zeros_like(self.kappa_t), tol=1e-6)
+    #     if not res.success:
+    #         raise SolutionNotFoundError('No solution', res.message)
+    #     return res.x
+
 
     @tr.cached_property
     def _get_eps_bot_t(self):
@@ -246,7 +282,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         res = root(lambda kappa: self.get_N_t(kappa, self.eps_cr),
                    0.0000001 + np.zeros_like(self.eps_cr), tol=1e-10)
         if not res.success:
-            print('No solution', res.message)
+            print('No kappa_cr solution (for plot_norm() function)', res.message)
         return res.x
 
     M_s_t = tr.Property(depends_on=DEPSTR)
@@ -282,7 +318,28 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     @tr.cached_property
     def _get_M_t(self):
-        return self.M_c_t + self.M_s_t
+        steel_material_factor = 1 #1.0 / 1.15
+        concrete_material_factor = 1 #0.85 / 1.5
+        return concrete_material_factor * self.M_c_t + steel_material_factor * self.M_s_t
+
+    # @tr.cached_property
+    # def _get_M_t(self):
+    #     initial_step = (self.high_kappa - self.low_kappa) / self.num_of_trials
+    #     for i in range(self.num_of_trials):
+    #         try:
+    #             M_t = self.M_c_t + self.M_s_t
+    #         except SolutionNotFoundError:
+    #             print('failed high_kappa: ', self.high_kappa)
+    #             self.high_kappa -= initial_step
+    #         else:
+    #             # This will run when no exception has been received
+    #             print('success high_kappa: ', self.high_kappa)
+    #             if i == 0:
+    #                 print('Note: high_kappa success from 1st try! selecting a higher value for high_kappa may produce '
+    #                       'a more reliable result!')
+    #             return M_t
+    #     print('No solution has been found!')
+    #     return M_t
 
     N_s_tj = tr.Property(depends_on=DEPSTR)
     '''Normal forces (steel)
@@ -357,8 +414,11 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         return M_I, kappa_I
 
     def get_kappa_M(self, M):
-        M_I, kappa_I = self.inv_M_kappa
-        return np.interp(M, M_I, kappa_I)
+        try:
+            M_I, kappa_I = self.inv_M_kappa
+            return np.interp(M, M_I, kappa_I)
+        except ValueError:
+            print('M inverse has not succeeded, the M-Kappa solution may have failed due to a wrong kappa range!')
 
     def plot_norm(self, ax1, ax2):
         idx = self.idx
@@ -396,12 +456,15 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     def plot_mk_and_stress_profile(self, ax1, ax2):
         self.plot_mk(ax1)
-
         idx = self.idx
         ax1.plot(self.kappa_t[idx], self.M_t[idx] / self.M_scale, color='orange', marker='o')
-        ax2.barh(self.z_j, self.N_s_tj[idx, :], height=6, color='red', align='center')
+
+        ax2.barh(self.z_j, self.N_s_tj[idx, :]/self.A_j, height=6, color='red', align='center')
+        ax2.set_ylabel('z [mm]')
+        ax2.set_xlabel('$\sigma_r$ [MPa]')
 
         ax22 = ax2.twiny()
+        ax22.set_xlabel('$\sigma_c$ [MPa]')
         ax22.plot(self.sig_tm[idx, :], self.z_m)
         ax22.axvline(0, linewidth=0.8, color='k')
         ax22.fill_betweenx(self.z_m, self.sig_tm[idx, :], 0, alpha=0.1)
@@ -412,3 +475,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         ax1.set_ylabel('Moment [kNm]')
         ax1.set_xlabel('Curvature [mm$^{-1}$]')
         ax1.legend()
+
+
+    def get_mk(self):
+        return self.M_t / self.M_scale, self.kappa_t
