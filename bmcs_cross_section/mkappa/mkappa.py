@@ -4,7 +4,7 @@ import traits.api as tr
 from bmcs_cross_section.cs_design import CrossSectionDesign
 from scipy.optimize import root
 from bmcs_utils.api import \
-    InteractiveModel, Item, View, mpl_align_xaxis, \
+    InteractiveModel, Item, View, mpl_align_xaxis, ParametricStudy, \
     SymbExpr, InjectSymbExpr, Float, Int, FloatRangeEditor, FloatEditor
 
 import enum
@@ -55,7 +55,15 @@ class MKappaSymbolic(SymbExpr):
     eps_top_solved = {eps_top: sp.solve(kappa + eps_z_.diff(z), eps_top)[0]}
     eps_z = eps_z_.subs(eps_top_solved)
 
-    sig_c_eps = sp.Piecewise(
+    # steel_material_factor = 1. / 1.15
+    # carbon_material_factor = 1. / 1.5
+    # concrete_material_factor = 0.85 / 1.5
+
+    steel_material_factor = 1.
+    carbon_material_factor = 1.
+    concrete_material_factor = 1.
+
+    sig_c_eps = concrete_material_factor * sp.Piecewise(
         (0, eps < eps_cu),
         (E_cc * eps_cy, eps < eps_cy),
         (E_cc * eps, eps < 0),
@@ -86,13 +94,13 @@ class MKappaSymbolic(SymbExpr):
 
     def _get_sig_s_eps(self):
         if self.model.reinforcement_type == ReinforcementType.STEEL:
-            sig_s_eps = sp.Piecewise(
+            sig_s_eps = self.steel_material_factor * sp.Piecewise(
                 (-self.E_s * self.eps_sy, self.eps < -self.eps_sy),
                 (self.E_s * self.eps, self.eps < self.eps_sy),
                 (self.E_s * self.eps_sy, self.eps >= self.eps_sy)
             )
         elif self.model.reinforcement_type == ReinforcementType.CARBON:
-            sig_s_eps = sp.Piecewise(
+            sig_s_eps = self.carbon_material_factor * sp.Piecewise(
                 (0, self.eps < 0),
                 (self.E_s * self.eps, self.eps < self.eps_sy),
                 (self.E_s * self.eps_sy - self.E_s * (self.eps - self.eps_sy), self.eps < 2 * self.eps_sy),
@@ -318,9 +326,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     @tr.cached_property
     def _get_M_t(self):
-        steel_material_factor = 1 #1.0 / 1.15
-        concrete_material_factor = 1 #0.85 / 1.5
-        return concrete_material_factor * self.M_c_t + steel_material_factor * self.M_s_t
+        eta_factor = 1.
+        return eta_factor * (self.M_c_t + self.M_s_t)
 
     # @tr.cached_property
     # def _get_M_t(self):
@@ -459,7 +466,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         idx = self.idx
         ax1.plot(self.kappa_t[idx], self.M_t[idx] / self.M_scale, color='orange', marker='o')
 
-        ax2.barh(self.z_j, self.N_s_tj[idx, :]/self.A_j, height=6, color='red', align='center')
+        ax2.barh(self.z_j, self.N_s_tj[idx, :]/self.A_j, height=4, color='red', align='center')
         ax2.set_ylabel('z [mm]')
         ax2.set_xlabel('$\sigma_r$ [MPa]')
 
@@ -479,3 +486,16 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     def get_mk(self):
         return self.M_t / self.M_scale, self.kappa_t
+
+
+class MKappaParamsStudy(ParametricStudy):
+
+    def __init__(self, mc):
+        self.mc = mc
+
+    def plot(self, ax, param_name, value):
+        ax.plot(self.mc.kappa_t, self.mc.M_t / self.mc.M_scale, label=param_name + '=' + str(value), lw=2)
+        ax.set_ylabel('Moment [kNm]')
+        ax.set_xlabel('Curvature [mm$^{-1}$]')
+        ax.set_title(param_name)
+        ax.legend()
