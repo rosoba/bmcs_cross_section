@@ -172,24 +172,19 @@ class CrossSectionLayout(InteractiveModel):
     def update_plot(self, ax):
         self.cs_design.cross_section_shape.update_plot(ax)
 
-        # TODO->Saeed: the previous line will plot a cross section, please add the steel to it just as red strips in z_j locations
-        #  and with a width that is relative to A_j (get z_j and A_j values from 'reinforcement' class variable)
-        #  (just fix, generalize and improve the following)
         H = int(self.cs_design.cross_section_shape.H)
 
-        max_B = np.max(self.cs_design.cross_section_shape.get_b(np.linspace(0, 100, H)))
-        
-        for i in range(len(self.reinforcement.z_j)):
-            
-            z = self.reinforcement.z_j[i]
-            A = self.reinforcement.A_j[i]
-            ax.plot([-max_B/A/2, max_B/A/2], [z, z], color='r', linewidth=5)
+        maxA = 0
+        for reinforcement in self.reinforcement:
+            A = reinforcement.A
+            maxA = max(A, maxA)
 
-#         ax.barh(self.z_j, self.N_s_tj[idx, :], height=6, color='red', align='center')
+        for reinforcement in self.reinforcement:
+            z = reinforcement.z
+            A = reinforcement.A
+            b = self.cs_design.cross_section_shape.get_b([z])
+            ax.plot([-0.9 * b/2, 0.9 * b/2], [z, z], color='r', linewidth=5 * A/maxA)
 
-
-        # ax.plot([self.b / 2 - self.width / 2, self.b / 2 + self.width / 2], [self.f_h, self.f_h], color='Blue',
-        #         linewidth=self.n_layers * self.thickness)
         ax.annotate('E_composite = {} GPa'.format(np.round(self.get_comp_E() / 1000), 0),
                     xy=(-H / 2 * 0.8, (H / 2 + H / 2) * 0.8), color='blue')
 
