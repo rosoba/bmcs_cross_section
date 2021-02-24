@@ -82,7 +82,7 @@ class MKappaSymbolic(SymbExpr):
     eta = eps / eps_cy
 
     # Moved already to the if statement but was left here in case the if would be changed
-    # sig_c_eps = sp.Piecewise(
+    # sig_c_eps = - sp.Piecewise(
     #     (0, eps < eps_cu),
     #     (f_cm * (k * eta - eta ** 2) / (1 + eta * (k - 2)), eps <= 0),  # use eps <= 0),
     #     (0, True)
@@ -104,7 +104,7 @@ class MKappaSymbolic(SymbExpr):
             if self.model.apply_material_safety_factors:
                 sig_c_eps = self.concrete_material_factor * sig_c_eps
         elif self.model.concrete_material_law == ConcreteMaterialLaw.EC2:
-            sig_c_eps = sp.Piecewise(
+            sig_c_eps = - sp.Piecewise(
                 (0, self.eps < self.eps_cu),
                 (self.f_cm * (self.k * self.eta - self.eta ** 2) / (1 + self.eta * (self.k - 2)), self.eps <= 0),
                 (0, True)
@@ -125,12 +125,27 @@ class MKappaSymbolic(SymbExpr):
     #     (0, True) #  eps >= eps_tu)
     # )
 
-    # Stress over the cross section height
-    # sig_c_z_ = sig_c_eps.subs(eps, eps_z)
-    sig_c_z_ = sig_c_eps.subs(eps, eps_z_) # this was like this originally
+    # # The following was replaced with a Property because otherwise it's not accepting sig_c_eps value
+    # # Stress over the cross section height
+    # # sig_c_z_ = sig_c_eps.subs(eps, eps_z)
+    # sig_c_z_ = sig_c_eps.subs(eps, eps_z_) # this was like this originally
 
-    # Substitute eps_top to get sig as a function of (kappa, eps_bot, z)
-    sig_c_z = sig_c_z_.subs(eps_top_solved)
+    # # The following was replaced with a Property because otherwise it's not accepting sig_c_eps value
+    # # Substitute eps_top to get sig as a function of (kappa, eps_bot, z)
+    # sig_c_z = sig_c_z_.subs(eps_top_solved)
+
+
+    sig_c_z_ = tr.Property()
+
+    def _get_sig_c_z_(self):
+        return self.sig_c_eps.subs(self.eps, self.eps_z_)
+
+
+    sig_c_z = tr.Property()
+
+    def _get_sig_c_z(self):
+        return self.sig_c_z_.subs(self.eps_top_solved)
+
 
     # Reinforcement constitutive law
     sig_s_eps = tr.Property()
@@ -160,12 +175,12 @@ class MKappaSymbolic(SymbExpr):
     # ----------------------------------------------------------------
     # SymbExpr protocol: Parameter names to be fetched from the model
     # ----------------------------------------------------------------
-    symb_model_params = ('E_ct', 'E_cc', 'eps_cr', 'eps_cy', 'eps_cu', 'mu', 'eps_tu')
+    symb_model_params = ('E_ct', 'E_cc', 'eps_cr', 'eps_cy', 'eps_cu', 'mu', 'eps_tu', 'f_cm')
 
     symb_expressions = [
         ('eps_z', ('kappa', 'eps_bot', 'z')),
-        # ('sig_c_eps', ('eps',)), # the new implementation from [RC]
-       ('sig_c_z', ('kappa', 'eps_bot', 'z')),
+        ('sig_c_eps', ('eps',)), # the new implementation from [RC]
+        ('sig_c_z', ('kappa', 'eps_bot', 'z')),
         ('sig_s_eps', ('eps', 'E_s', 'eps_sy')),
     ]
 
@@ -176,6 +191,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     reinforcement_type = ReinforcementType.STEEL
     concrete_material_law = ConcreteMaterialLaw.DEFAULT
+
+    f_cm = tr.Float(28)
 
     apply_material_safety_factors = tr.Bool(False)
 
