@@ -14,6 +14,10 @@ class ReinforcementType(enum.Enum):
     STEEL, CARBON = range(2)
 
 
+class ConcreteMaterialLaw(enum.Enum):
+    DEFAULT, EC2 = range(2)
+
+
 class SolutionNotFoundError(ValueError):
     pass
 
@@ -56,21 +60,60 @@ class MKappaSymbolic(SymbExpr):
     eps_z = eps_z_.subs(eps_top_solved)
 
     steel_material_factor = 1. / 1.15
-    carbon_material_factor = 1. / 1.5
+    carbon_material_factor = 1. / 1.5       # 1.3
     concrete_material_factor = 0.85 / 1.5
 
-#     steel_material_factor = 1.
-#     carbon_material_factor = 1.
-#     concrete_material_factor = 1.
+    # Moved already to the if statement but was left here in case the if would be changed
+    # sig_c_eps = concrete_material_factor * sp.Piecewise(
+    #     (0, eps < eps_cu),
+    #     (E_cc * eps_cy, eps < eps_cy),
+    #     (E_cc * eps, eps < 0),
+    #     (E_ct * eps, eps < eps_cr),
+    #     (mu * E_ct * eps_cr, eps < eps_tu),
+    #     (0, True) #  eps >= eps_tu)
+    # )
 
-    sig_c_eps = concrete_material_factor * sp.Piecewise(
-        (0, eps < eps_cu),
-        (E_cc * eps_cy, eps < eps_cy),
-        (E_cc * eps, eps < 0),
-        (E_ct * eps, eps < eps_cr),
-        (mu * E_ct * eps_cr, eps < eps_tu),
-        (0, True) #  eps >= eps_tu)
-    )
+    # -------------- Concrete material law according to EC2 Eq. (3.14) ------------------
+    f_cm = sp.Symbol('f_cm', real=True)
+    k = sp.Symbol('k', real=True)
+    eta = sp.Symbol('eta', real=True)
+
+    k = 1.05 * E_cc * sp.Abs(eps_cy) / f_cm
+    eta = eps / eps_cy
+
+    # Moved already to the if statement but was left here in case the if would be changed
+    # sig_c_eps = sp.Piecewise(
+    #     (0, eps < eps_cu),
+    #     (f_cm * (k * eta - eta ** 2) / (1 + eta * (k - 2)), eps <= 0),  # use eps <= 0),
+    #     (0, True)
+    # )
+    # -----------------------------------------------------------------------------------
+
+    sig_c_eps = tr.Property()
+
+    def _get_sig_c_eps(self):
+        if self.model.concrete_material_law == ConcreteMaterialLaw.DEFAULT:
+            sig_c_eps = sp.Piecewise(
+                (0, self.eps < self.eps_cu),
+                (self.E_cc * self.eps_cy, self.eps < self.eps_cy),
+                (self.E_cc * self.eps, self.eps < 0),
+                (self.E_ct * self.eps, self.eps < self.eps_cr),
+                (self.mu * self.E_ct * self.eps_cr, self.eps < self.eps_tu),
+                (0, True)  # eps >= eps_tu)
+            )
+            if self.model.apply_material_safety_factors:
+                sig_c_eps = self.concrete_material_factor * sig_c_eps
+        elif self.model.concrete_material_law == ConcreteMaterialLaw.EC2:
+            sig_c_eps = sp.Piecewise(
+                (0, self.eps < self.eps_cu),
+                (self.f_cm * (self.k * self.eta - self.eta ** 2) / (1 + self.eta * (self.k - 2)), self.eps <= 0),
+                (0, True)
+            )
+            # Note: material safety factor is applied already to f_cm!
+        else:
+            raise NameError('There\'s no concrete material law with the name ' + self.model.concrete_material_law)
+        return sig_c_eps
+
 
     # Alternative with descending branch instead of sudden drop for tension
     # sig_c_eps = sp.Piecewise(
@@ -94,18 +137,22 @@ class MKappaSymbolic(SymbExpr):
 
     def _get_sig_s_eps(self):
         if self.model.reinforcement_type == ReinforcementType.STEEL:
-            sig_s_eps = self.steel_material_factor * sp.Piecewise(
+            sig_s_eps = sp.Piecewise(
                 (-self.E_s * self.eps_sy, self.eps < -self.eps_sy),
                 (self.E_s * self.eps, self.eps < self.eps_sy),
                 (self.E_s * self.eps_sy, self.eps >= self.eps_sy)
             )
+            if self.model.apply_material_safety_factors:
+                sig_s_eps = self.steel_material_factor * sig_s_eps
         elif self.model.reinforcement_type == ReinforcementType.CARBON:
-            sig_s_eps = self.carbon_material_factor * sp.Piecewise(
+            sig_s_eps = sp.Piecewise(
                 (0, self.eps < 0),
                 (self.E_s * self.eps, self.eps < self.eps_sy),
                 (self.E_s * self.eps_sy - self.E_s * (self.eps - self.eps_sy), self.eps < 2 * self.eps_sy),
                 (0, True)
             )
+            if self.model.apply_material_safety_factors:
+                sig_s_eps = self.carbon_material_factor * sig_s_eps
         else:
             raise NameError('There\'s no reinforcement type with the name ' + self.model.reinforcement_typ)
         return sig_s_eps
@@ -128,6 +175,9 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     name = 'Moment-Curvature'
 
     reinforcement_type = ReinforcementType.STEEL
+    concrete_material_law = ConcreteMaterialLaw.DEFAULT
+
+    apply_material_safety_factors = tr.Bool(False)
 
     ipw_view = View(
         Item('low_kappa', latex=r'\text{Low}~\kappa', editor=FloatEditor(step=0.00001)),
