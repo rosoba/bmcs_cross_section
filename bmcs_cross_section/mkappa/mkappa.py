@@ -75,11 +75,9 @@ class MKappaSymbolic(SymbExpr):
 
     # -------------- Concrete material law according to EC2 Eq. (3.14) ------------------
     f_cm = sp.Symbol('f_cm', real=True)
-    k = sp.Symbol('k', real=True)
-    eta = sp.Symbol('eta', real=True)
 
-    k = 1.05 * E_cc * sp.Abs(eps_cy) / f_cm
-    eta = eps / eps_cy
+    f_cd = sp.Symbol('f_cd', real=True)
+    n = sp.Symbol('n', real=True)
 
     # Moved already to the if statement but was left here in case the if would be changed
     # sig_c_eps = - sp.Piecewise(
@@ -91,6 +89,7 @@ class MKappaSymbolic(SymbExpr):
 
     sig_c_eps = tr.Property()
 
+    # TODO: Provide a cleaner why for concrete law options
     def _get_sig_c_eps(self):
         if self.model.concrete_material_law == ConcreteMaterialLaw.DEFAULT:
             sig_c_eps = sp.Piecewise(
@@ -104,12 +103,59 @@ class MKappaSymbolic(SymbExpr):
             if self.model.apply_material_safety_factors:
                 sig_c_eps = self.concrete_material_factor * sig_c_eps
         elif self.model.concrete_material_law == ConcreteMaterialLaw.EC2:
-            sig_c_eps = - sp.Piecewise(
+            k = 1.05 * self.E_cc * sp.Abs(self.eps_cy) / self.f_cm
+            eta = self.eps / self.eps_cy
+            sig_c = self.f_cm * (k * eta - eta ** 2) / (1 + eta * (k - 2))
+
+            # with continuous curve until sig_c = 0
+            # eps_at_sig_0 = sp.solve(sig_c, self.eps)[1]
+            # sig_c_eps = -sp.Piecewise(
+            #     (0, self.eps < eps_at_sig_0),
+            #     (sig_c, self.eps <= 0),  # use eps <= 0),
+            #
+            #     # Tension branch
+            #     (-self.E_ct * self.eps, self.eps < self.eps_cr),
+            #
+            #     (0, True)
+            # )
+
+            # with extra line
+            # eps_extra = 0.005
+            # sig_c_cu = sig_c.subs(self.eps, self.eps_cu)
+            # extra_line = sig_c_cu + sig_c_cu * (self.eps - self.eps_cu) / eps_extra
+            # eps_at_sig_0 = sp.solve(extra_line, self.eps)[0]
+            # sig_c_eps = -sp.Piecewise(
+            #     (0, self.eps < eps_at_sig_0),
+            #     (extra_line, self.eps < self.eps_cu),
+            #     (sig_c, self.eps <= 0),
+            #     (0, True)
+            # )
+
+            # with direct drop exactly like EC2 drawing
+            # sig_c_eps = - sp.Piecewise(
+            #     (0, self.eps < self.eps_cu),
+            #     (sig_c, self.eps <= 0),
+            #     (0, True)
+            # )
+
+            # EC2 eq. (3.17-3.18)
+            sig_c = self.f_cd * (1 - (1 - self.eps / self.eps_cy) ** self.n)
+            sig_c_eps = -sp.Piecewise(
                 (0, self.eps < self.eps_cu),
-                (self.f_cm * (self.k * self.eta - self.eta ** 2) / (1 + self.eta * (self.k - 2)), self.eps <= 0),
+                (self.f_cd, self.eps < self.eps_cy),
+                (sig_c, self.eps < 0),
+
+                # Tension branch
+                (-self.E_ct * self.eps, self.eps < self.eps_cr),
+                # Tension branch, adding post-peak branch
+                (-self.mu * self.E_ct * self.eps_cr, self.eps < self.eps_tu),
+
                 (0, True)
             )
-            # Note: material safety factor is applied already to f_cm!
+
+            # if self.model.apply_material_safety_factors:
+            #     # sig_c_eps = sig_c_eps - 8 # F_ck = F_cm - 8
+            #     sig_c_eps = self.concrete_material_factor * sig_c_eps
         else:
             raise NameError('There\'s no concrete material law with the name ' + self.model.concrete_material_law)
         return sig_c_eps
@@ -129,7 +175,7 @@ class MKappaSymbolic(SymbExpr):
     # # Stress over the cross section height
     # # sig_c_z_ = sig_c_eps.subs(eps, eps_z)
     # sig_c_z_ = sig_c_eps.subs(eps, eps_z_) # this was like this originally
-
+    #
     # # The following was replaced with a Property because otherwise it's not accepting sig_c_eps value
     # # Substitute eps_top to get sig as a function of (kappa, eps_bot, z)
     # sig_c_z = sig_c_z_.subs(eps_top_solved)
@@ -150,6 +196,7 @@ class MKappaSymbolic(SymbExpr):
     # Reinforcement constitutive law
     sig_s_eps = tr.Property()
 
+    # TODO: Provide a cleaner why for reinforcement law options
     def _get_sig_s_eps(self):
         if self.model.reinforcement_type == ReinforcementType.STEEL:
             sig_s_eps = sp.Piecewise(
@@ -175,7 +222,7 @@ class MKappaSymbolic(SymbExpr):
     # ----------------------------------------------------------------
     # SymbExpr protocol: Parameter names to be fetched from the model
     # ----------------------------------------------------------------
-    symb_model_params = ('E_ct', 'E_cc', 'eps_cr', 'eps_cy', 'eps_cu', 'mu', 'eps_tu', 'f_cm')
+    symb_model_params = ('E_ct', 'E_cc', 'eps_cr', 'eps_cy', 'eps_cu', 'mu', 'eps_tu', 'f_cm', 'f_cd', 'n')
 
     symb_expressions = [
         ('eps_z', ('kappa', 'eps_bot', 'z')),
@@ -193,6 +240,9 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     concrete_material_law = ConcreteMaterialLaw.DEFAULT
 
     f_cm = tr.Float(28)
+
+    f_cd = tr.Float(28 * 0.85 / 1.5)
+    n = tr.Float(2)
 
     apply_material_safety_factors = tr.Bool(False)
 
