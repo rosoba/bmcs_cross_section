@@ -7,11 +7,6 @@ from bmcs_utils.api import \
     InteractiveModel, Item, View, mpl_align_xaxis, ParametricStudy, \
     SymbExpr, InjectSymbExpr, Float, Int, FloatRangeEditor, FloatEditor
 
-import enum
-
-class ReinforcementType(enum.Enum):
-    STEEL, CARBON = range(2)
-
 class SolutionNotFoundError(ValueError):
     pass
 
@@ -23,9 +18,6 @@ class MKappaSymbolic(SymbExpr):
     # -------------------------------------------------------------------------
     # Symbolic derivation of expressions
     # -------------------------------------------------------------------------
-    # kappa = sp.Symbol('kappa', real=True, nonpositive=True)
-    # eps_top = sp.symbols('varepsilon_top', real=True) # , nonpositive=True)
-    # eps_bot = sp.symbols('varepsilon_bot', real=True, nonnegative =True)
     kappa = sp.Symbol('kappa', real=True)
     eps_top = sp.symbols('varepsilon_top', real=True)
     eps_bot = sp.symbols('varepsilon_bot', real=True)
