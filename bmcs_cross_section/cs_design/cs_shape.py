@@ -112,9 +112,9 @@ class TShape(CrossSectionShapeBase):
 
     ipw_view = View(
         *CrossSectionShapeBase.ipw_view.content,
-        Item('B_f', minmax=(10, 3000), latex='B_f [mm]'),
-        Item('B_w', minmax=(10, 3000), latex='B_w [mm]'),
-        Item('H_w', minmax=(10, 3000), latex='H_w [mm]'),
+        Item('B_f', minmax=(10, 3000), latex=r'B_f \mathrm{[mm]}'),
+        Item('B_w', minmax=(10, 3000), latex=r'B_w \mathrm{[mm]}'),
+        Item('H_w', minmax=(10, 3000), latex=r'H_w \mathrm{[mm]}'),
     )
 
     def get_cs_area(self):

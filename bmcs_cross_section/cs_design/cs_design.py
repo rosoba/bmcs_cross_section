@@ -13,6 +13,10 @@ class CrossSectionDesign(InteractiveModel):
     def _cross_section_layout_default(self):
         return CrossSectionLayout(cs_design=self)
 
+    csl = tr.Property
+    def _get_csl(self):
+        return self.cross_section_layout
+
     H = tr.DelegatesTo('cross_section_shape')
 
     # Cross section shape options
@@ -37,6 +41,10 @@ class CrossSectionDesign(InteractiveModel):
 #             shape = CustomShape
         # TODO [Homam] fix this
         return Rectangle()
+
+    css = tr.Property
+    def _get_css(self):
+        return self.cross_section_shape
 
     ipw_view = View(
         Item('Rectangle', latex=r'Rectangle'),
