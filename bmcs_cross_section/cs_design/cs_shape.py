@@ -40,7 +40,7 @@ class Rectangle(CrossSectionShapeBase):
 
     ipw_view = View(
         *CrossSectionShapeBase.ipw_view.content,        # this will add View Items of the base class CrossSectionShapeBase
-        Item('B', minmax=(10, 500), latex='B [mm]')
+        Item('B', minmax=(10, 500), latex='B \mathrm{[mm]}')
     )
 
     def get_cs_area(self):

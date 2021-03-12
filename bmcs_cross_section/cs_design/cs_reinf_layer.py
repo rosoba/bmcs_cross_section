@@ -1,8 +1,9 @@
 import numpy as np
 import traits.api as tr
 from bmcs_utils.api import \
-    InteractiveModel, Item, View, Float, Int, FloatEditor
+    InteractiveModel, Item, View, Float, Int, FloatEditor, EitherType
 from bmcs_cross_section.matmod import ReinfMatMod, SteelReinfMatMod, CarbonReinfMatMod
+
 
 class ReinfLayer(InteractiveModel):
     # TODO: changes in the ipw interactive window doesn't reflect on mkappa
@@ -11,13 +12,16 @@ class ReinfLayer(InteractiveModel):
     z = Float(50, CS=True)
     """z positions of reinforcement layers"""
 
-    matmod = tr.Instance(ReinfMatMod)
+    matmod = EitherType(options=[('steel', SteelReinfMatMod),
+                                 ('carbon', CarbonReinfMatMod)])
+
+    tree = ['matmod']
 
     def get_N(self, eps):
-        return self.A * self.matmod.get_sig(eps)
+        return self.A * self.matmod_.get_sig(eps)
 
     def update_plot(self, ax):
-        eps_range = self.matmod.get_eps_plot_range()
+        eps_range = self.matmod_.get_eps_plot_range()
         N_range = self.get_N(eps_range)
         ax.plot(eps_range, N_range, color='red')
         ax.fill_between(eps_range, N_range, 0, color='red', alpha=0.1)
@@ -39,9 +43,10 @@ class FabricLayer(ReinfLayer):
         return int(self.width/self.spacing) * self.A_roving
 
     def _matmod_default(self):
-        return CarbonReinfMatMod()
+        return 'carbon'
 
     ipw_view = View(
+        Item('matmod', latex=r'\mathrm{behavior}'),
         Item('z', latex='z \mathrm{[mm]}'),
         Item('width', latex='rov_w \mathrm{[mm]}'),
         Item('spacing', latex='ro_s \mathrm{[mm]}'),
@@ -63,9 +68,10 @@ class BarLayer(ReinfLayer):
         return self.count * np.pi * (self.ds / 2.) ** 2
 
     def _matmod_default(self):
-        return SteelReinfMatMod()
+        return 'steel'
 
     ipw_view = View(
+        Item('matmod', latex=r'\mathrm{behavior}'),
         Item('z', latex=r'z \mathrm{[mm]}'),
         Item('ds', latex=r'ds \mathrm{[mm]}'),
         Item('count', latex='count'),

@@ -4,8 +4,8 @@ import traits.api as tr
 from bmcs_cross_section.cs_design import CrossSectionDesign
 from scipy.optimize import root
 from bmcs_utils.api import \
-    InteractiveModel, Item, View, mpl_align_xaxis, ParametricStudy, \
-    SymbExpr, InjectSymbExpr, Float, Int, FloatRangeEditor, FloatEditor
+    InteractiveModel, Instance, Item, View, mpl_align_xaxis, ParametricStudy, \
+    SymbExpr, InjectSymbExpr, Float, Int, FloatRangeEditor, FloatEditor, HistoryEditor
 
 class SolutionNotFoundError(ValueError):
     pass
@@ -61,32 +61,35 @@ class MKappa(InteractiveModel, InjectSymbExpr):
              editor=FloatRangeEditor(low_name='low_kappa',
                                      high_name='high_kappa',
                                      n_steps_name='n_kappa')
-             )
+             ),
+        time_editor=HistoryEditor(time_var='kappa_slider',
+                                  time_max_var='high_kappa'),
     )
 
     symb_class = MKappaSymbolic
-    cs_design = tr.Instance(CrossSectionDesign, ())
+    cs_design = Instance(CrossSectionDesign, ())
 
+    tree = ['cs_design']
     # Use PrototypedFrom only when the prototyped object is a class
     # (The prototyped attribute behaves similarly
     # to a delegated attribute, until it is explicitly
     # changed; from that point forward, the prototyped attribute
     # changes independently from its prototype.)
     # (it's kind of like tr.DelegatesTo('cs_design.cross_section_shape'))
-    cross_section_shape = tr.PrototypedFrom('cs_design', 'cross_section_shape')
-    cross_section_layout = tr.PrototypedFrom('cs_design', 'cross_section_layout')
-    matrix = tr.PrototypedFrom('cross_section_layout', 'matrix')
-    reinforcement = tr.PrototypedFrom('cross_section_layout', 'reinforcement')
+    cross_section_shape = tr.DelegatesTo('cs_design')
+    cross_section_shape_ = tr.DelegatesTo('cs_design')
+    cross_section_layout = tr.DelegatesTo('cs_design')
+    matrix_ = tr.DelegatesTo('cs_design')
 
     # Geometry
-    H = tr.DelegatesTo('cross_section_shape')
+    H = tr.DelegatesTo('cross_section_shape_')
 
-    DEPSTR = '+BC, +MAT, cross_section_shape.+GEO, matrix.+MAT, reinforcement.+MAT'
+    DEPSTR = 'state_changed'
 
     n_m = Int(100, DSC=True, desc='Number of discretization points along the height of the cross-section')
 
     # @todo: fix the dependency - `H` should be replaced by _GEO
-    z_m = tr.Property(depends_on='n_m, H')
+    z_m = tr.Property(depends_on=DEPSTR)
 
     @tr.cached_property
     def _get_z_m(self):
@@ -106,7 +109,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         idx = np.argmax(ks <= self.kappa_t)
         return idx
 
-    kappa_t = tr.Property(tr.Array(np.float_), depends_on='+BC')
+    kappa_t = tr.Property(tr.Array(np.float_), depends_on=DEPSTR)
     '''Curvature values for which the bending moment must be found
     '''
 
@@ -140,13 +143,13 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def get_sig_c_z(self, kappa_t, eps_bot_t, z_tm):
         """Get the stress profile over the height"""
         eps_z = self.symb.get_eps_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
-        sig_c_z = self.matrix.get_sig(eps_z)
+        sig_c_z = self.matrix_.get_sig(eps_z)
         return sig_c_z
 
     # Normal force in concrete (tension and compression)
     def get_N_c_t(self, kappa_t, eps_bot_t):
         z_tm = self.z_m[np.newaxis, :]
-        b_z_m = self.cross_section_shape.get_b(z_tm)
+        b_z_m = self.cross_section_shape_.get_b(z_tm)
         N_z_tm2 = b_z_m * self.get_sig_c_z(kappa_t, eps_bot_t, z_tm)
         return np.trapz(N_z_tm2, x=z_tm, axis=-1)
 
@@ -236,16 +239,16 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     @tr.cached_property
     def _get_M_c_t(self):
         z_tm = self.z_m[np.newaxis, :]
-        b_z_m = self.cross_section_shape.get_b(z_tm)
+        b_z_m = self.cross_section_shape_.get_b(z_tm)
         N_z_tm2 = b_z_m * self.get_sig_c_z(self.kappa_t, self.eps_bot_t, z_tm)
         return -np.trapz(N_z_tm2 * z_tm, x=z_tm, axis=-1)
 
     M_t = tr.Property(depends_on=DEPSTR)
     '''Bending moment
     '''
-
     @tr.cached_property
     def _get_M_t(self):
+        print('M - k recalculated')
         eta_factor = 1.
         return eta_factor * (self.M_c_t + self.M_s_t)
 
@@ -374,6 +377,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         return ax1, ax2, ax3
 
     def update_plot(self, axes):
+        print('update plot')
         self.plot(*axes)
 
     def plot_mk_and_stress_profile(self, ax1, ax2):
@@ -393,6 +397,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         mpl_align_xaxis(ax2, ax22)
 
     def plot_mk(self, ax1):
+        print('plot - mk')
         ax1.plot(self.kappa_t, self.M_t / self.M_scale, label='bmcs_cs_mkappa')
         ax1.set_ylabel('Moment [kNm]')
         ax1.set_xlabel('Curvature [mm$^{-1}$]')
