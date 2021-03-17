@@ -342,8 +342,8 @@ class PulloutHist(Hist, bu.Model, Vis2D):
     ipw_view = bu.View(
         bu.Item('t_slider', readonly=True),
         time_editor=bu.HistoryEditor(
-            time_var='t_slider',
-            time_var_max='t_max',
+            var='t_slider',
+            max_var='t_max',
         )
     )
 

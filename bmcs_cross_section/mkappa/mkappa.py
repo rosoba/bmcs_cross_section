@@ -50,22 +50,6 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     """Class returning the moment curvature relationship."""
     name = 'Moment-Curvature'
 
-    apply_material_safety_factors = tr.Bool(False)
-
-    ipw_view = View(
-        Item('low_kappa', latex=r'\text{Low}~\kappa', editor=FloatEditor(step=0.00001)),
-        Item('high_kappa', latex=r'\text{High}~\kappa', editor=FloatEditor(step=0.00001)),
-        Item('n_kappa', latex='n_{\kappa}'),
-        Item('n_m', latex='n_m'),
-        Item('kappa_slider', latex='\kappa',
-             editor=FloatRangeEditor(low_name='low_kappa',
-                                     high_name='high_kappa',
-                                     n_steps_name='n_kappa')
-             ),
-        time_editor=HistoryEditor(time_var='kappa_slider',
-                                  time_max_var='high_kappa'),
-    )
-
     symb_class = MKappaSymbolic
     cs_design = Instance(CrossSectionDesign, ())
 
@@ -95,13 +79,36 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def _get_z_m(self):
         return np.linspace(0, self.H, self.n_m)
 
-    low_kappa = Float(0.0, BC=True)
-    high_kappa = Float(0.00002, BC=True)
+    low_kappa = Float(0.0, BC=True, GEO=True)
+    high_kappa = Float(0.00002, BC=True, GEO=True)
     n_kappa = Int(100, BC=True)
+    step_kappa = tr.Property(Float, depends_on='low_kappa, high_kappa')
+    @tr.cached_property
+    def _get_step_kappa(self):
+        return float((self.high_kappa-self.low_kappa)/self.n_kappa)
 
     kappa_slider = Float(0.0000001)
 
+    ipw_view = View(
+        Item('low_kappa', latex=r'\text{Low}~\kappa', editor=FloatEditor(step=0.00001)),
+        Item('high_kappa', latex=r'\text{High}~\kappa', editor=FloatEditor(step=0.00001)),
+        Item('n_kappa', latex='n_{\kappa}'),
+        Item('n_m', latex='n_m'),
+        Item('kappa_slider', latex='\kappa', readonly=True),
+             # editor=FloatRangeEditor(low_name='low_kappa',
+             #                         high_name='high_kappa',
+             #                         n_steps_name='n_kappa')
+             # ),
+        time_editor=HistoryEditor(var='kappa_slider',
+                                  min_var='low_kappa',
+                                  max_var='high_kappa',
+                                  ),
+    )
+
+
     idx = tr.Property(depends_on='kappa_slider')
+
+    apply_material_safety_factors = tr.Bool(False)
 
     @tr.cached_property
     def _get_idx(self):
@@ -377,7 +384,6 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         return ax1, ax2, ax3
 
     def update_plot(self, axes):
-        print('update plot')
         self.plot(*axes)
 
     def plot_mk_and_stress_profile(self, ax1, ax2):
@@ -397,7 +403,6 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         mpl_align_xaxis(ax2, ax22)
 
     def plot_mk(self, ax1):
-        print('plot - mk')
         ax1.plot(self.kappa_t, self.M_t / self.M_scale, label='bmcs_cs_mkappa')
         ax1.set_ylabel('Moment [kNm]')
         ax1.set_xlabel('Curvature [mm$^{-1}$]')
