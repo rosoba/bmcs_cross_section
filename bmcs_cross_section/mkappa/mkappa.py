@@ -522,10 +522,10 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         M_t = self.M_t
         I_max = np.argmax(M_t)
         I_min = np.argmin(M_t)
-        M_I = self.M_t[I_min:I_max + 1]
-        kappa_I = self.kappa_t[I_min:I_max + 1]
+        M_I = np.copy(M_t[I_min:I_max + 1])
+        kappa_I = np.copy(self.kappa_t[I_min:I_max + 1])
         # find the index corresponding to zero kappa
-        idx = np.argmax(0 <= self.kappa_t)
+        idx = np.argmax(0 <= kappa_I)
         # and modify the values such that the
         # Values of moment are non-descending
         M_plus = M_I[idx:]
