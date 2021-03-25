@@ -13,7 +13,7 @@ from ibvpy.api import \
     TStepBC, Hist, XDomainFEInterface1D
 from ibvpy.bcond import BCDof
 from ibvpy.fets.fets1D5 import FETS1D52ULRH
-from ibvpy.tfunction import LoadingScenario
+from ibvpy.tfunction import MonotonicScenario, CyclicLoadingScenario
 from ibvpy.tmodel.mats1D5.vmats1D5_bondslip1D import \
     MATSBondSlipMultiLinear, MATSBondSlipDP, \
     MATSBondSlipD, MATSBondSlipEP, MATSBondSlipFatigue
@@ -534,14 +534,12 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
     # =========================================================================
     # Test setup parameters
     # =========================================================================
-    loading_scenario = bu.Instance(
-        LoadingScenario,
+    loading_scenario = bu.EitherType(
+        options=[('monotonic', MonotonicScenario),
+                 ('cyclic', CyclicLoadingScenario)],
         report=True,
         desc='object defining the loading scenario'
     )
-
-    def _loading_scenario_default(self):
-        return LoadingScenario()
 
     cross_section = bu.Instance(
         CrossSection,
@@ -723,7 +721,7 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
         return BCDof(node_name='pull-out displacement',
                      var=self.control_variable,
                      dof=self.controlled_dof, value=self.w_max,
-                     time_function=self.loading_scenario)
+                     time_function=self.loading_scenario_)
 
     bc = Property(depends_on=itags_str)
 
