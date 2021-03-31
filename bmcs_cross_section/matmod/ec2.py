@@ -1,5 +1,7 @@
 import numpy as np
 
+# TODO - [SR] - check if this can be transferred to a material model in analogy
+#        to implementations in concrete
 
 class EC2:
 

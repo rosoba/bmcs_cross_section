@@ -4,19 +4,8 @@ import traits.api as tr
 from bmcs_cross_section.cs_design import CrossSectionDesign
 from scipy.optimize import root
 from bmcs_utils.api import \
-    InteractiveModel, Item, View, mpl_align_xaxis, ParametricStudy, \
-    SymbExpr, InjectSymbExpr, Float, Int, FloatRangeEditor, FloatEditor
-
-import enum
-
-
-class ReinforcementType(enum.Enum):
-    STEEL, CARBON = range(2)
-
-
-class ConcreteMaterialLaw(enum.Enum):
-    DEFAULT, EC2 = range(2)
-
+    InteractiveModel, Instance, Item, View, mpl_align_xaxis, ParametricStudy, \
+    SymbExpr, InjectSymbExpr, Float, Int, FloatRangeEditor, FloatEditor, HistoryEditor
 
 class SolutionNotFoundError(ValueError):
     pass
@@ -29,27 +18,11 @@ class MKappaSymbolic(SymbExpr):
     # -------------------------------------------------------------------------
     # Symbolic derivation of expressions
     # -------------------------------------------------------------------------
-    # kappa = sp.Symbol('kappa', real=True, nonpositive=True)
-    # eps_top = sp.symbols('varepsilon_top', real=True) # , nonpositive=True)
-    # eps_bot = sp.symbols('varepsilon_bot', real=True, nonnegative =True)
     kappa = sp.Symbol('kappa', real=True)
     eps_top = sp.symbols('varepsilon_top', real=True)
     eps_bot = sp.symbols('varepsilon_bot', real=True)
     b, h, z = sp.symbols('b, h, z', real=True, nonnegative=True)
-    eps_sy, E_s = sp.symbols('varepsilon_sy, E_s', real=True, nonnegative=True)
     eps = sp.Symbol('varepsilon', real=True)
-
-    # -------------------------------------------------------------------------
-    # Model parameters
-    # -------------------------------------------------------------------------
-    E_ct, E_cc, eps_cr, eps_tu, mu = sp.symbols(
-        r'E_ct, E_cc, varepsilon_cr, varepsilon_tu, mu', real=True,
-        nonnegative=True
-    )
-    eps_cy, eps_cu = sp.symbols(
-        r'varepsilon_cy, varepsilon_cu',
-        real=True, nonpositive=True
-    )
 
     # -------------------------------------------------------------------------
     # Symbolic derivation of expressions
@@ -63,172 +36,13 @@ class MKappaSymbolic(SymbExpr):
     carbon_material_factor = 1. / 1.5       # 1.3
     concrete_material_factor = 0.85 / 1.5
 
-    # Moved already to the if statement but was left here in case the if would be changed
-    # sig_c_eps = concrete_material_factor * sp.Piecewise(
-    #     (0, eps < eps_cu),
-    #     (E_cc * eps_cy, eps < eps_cy),
-    #     (E_cc * eps, eps < 0),
-    #     (E_ct * eps, eps < eps_cr),
-    #     (mu * E_ct * eps_cr, eps < eps_tu),
-    #     (0, True) #  eps >= eps_tu)
-    # )
-
-    # -------------- Concrete material law according to EC2 Eq. (3.14) ------------------
-    f_cm = sp.Symbol('f_cm', real=True)
-
-    f_cd = sp.Symbol('f_cd', real=True)
-    n = sp.Symbol('n', real=True)
-
-    # Moved already to the if statement but was left here in case the if would be changed
-    # sig_c_eps = - sp.Piecewise(
-    #     (0, eps < eps_cu),
-    #     (f_cm * (k * eta - eta ** 2) / (1 + eta * (k - 2)), eps <= 0),  # use eps <= 0),
-    #     (0, True)
-    # )
-    # -----------------------------------------------------------------------------------
-
-    sig_c_eps = tr.Property()
-
-    # TODO: Provide a cleaner why for concrete law options
-    def _get_sig_c_eps(self):
-        if self.model.concrete_material_law == ConcreteMaterialLaw.DEFAULT:
-            sig_c_eps = sp.Piecewise(
-                (0, self.eps < self.eps_cu),
-                (self.E_cc * self.eps_cy, self.eps < self.eps_cy),
-                (self.E_cc * self.eps, self.eps < 0),
-                (self.E_ct * self.eps, self.eps < self.eps_cr),
-                (self.mu * self.E_ct * self.eps_cr, self.eps < self.eps_tu),
-                (0, True)  # eps >= eps_tu)
-            )
-            if self.model.apply_material_safety_factors:
-                sig_c_eps = self.concrete_material_factor * sig_c_eps
-        elif self.model.concrete_material_law == ConcreteMaterialLaw.EC2:
-            k = 1.05 * self.E_cc * sp.Abs(self.eps_cy) / self.f_cm
-            eta = self.eps / self.eps_cy
-            sig_c = self.f_cm * (k * eta - eta ** 2) / (1 + eta * (k - 2))
-
-            # with continuous curve until sig_c = 0
-            # eps_at_sig_0 = sp.solve(sig_c, self.eps)[1]
-            # sig_c_eps = -sp.Piecewise(
-            #     (0, self.eps < eps_at_sig_0),
-            #     (sig_c, self.eps <= 0),  # use eps <= 0),
-            #
-            #     # Tension branch
-            #     (-self.E_ct * self.eps, self.eps < self.eps_cr),
-            #
-            #     (0, True)
-            # )
-
-            # with extra line
-            # eps_extra = 0.005
-            # sig_c_cu = sig_c.subs(self.eps, self.eps_cu)
-            # extra_line = sig_c_cu + sig_c_cu * (self.eps - self.eps_cu) / eps_extra
-            # eps_at_sig_0 = sp.solve(extra_line, self.eps)[0]
-            # sig_c_eps = -sp.Piecewise(
-            #     (0, self.eps < eps_at_sig_0),
-            #     (extra_line, self.eps < self.eps_cu),
-            #     (sig_c, self.eps <= 0),
-            #     (0, True)
-            # )
-
-            # with direct drop exactly like EC2 drawing
-            # sig_c_eps = - sp.Piecewise(
-            #     (0, self.eps < self.eps_cu),
-            #     (sig_c, self.eps <= 0),
-            #     (0, True)
-            # )
-
-            # EC2 eq. (3.17-3.18)
-            sig_c = self.f_cd * (1 - (1 - self.eps / self.eps_cy) ** self.n)
-            sig_c_eps = -sp.Piecewise(
-                (0, self.eps < self.eps_cu),
-                (self.f_cd, self.eps < self.eps_cy),
-                (sig_c, self.eps < 0),
-
-                # Tension branch
-                (-self.E_ct * self.eps, self.eps < self.eps_cr),
-                # Tension branch, adding post-peak branch
-                (-self.mu * self.E_ct * self.eps_cr, self.eps < self.eps_tu),
-
-                (0, True)
-            )
-
-            # if self.model.apply_material_safety_factors:
-            #     # sig_c_eps = sig_c_eps - 8 # F_ck = F_cm - 8
-            #     sig_c_eps = self.concrete_material_factor * sig_c_eps
-        else:
-            raise NameError('There\'s no concrete material law with the name ' + self.model.concrete_material_law)
-        return sig_c_eps
-
-
-    # Alternative with descending branch instead of sudden drop for tension
-    # sig_c_eps = sp.Piecewise(
-    #     (0, eps < eps_cu),
-    #     (E_cc * eps_cy, eps < eps_cy),
-    #     (E_cc * eps, eps < 0),
-    #     (E_ct * eps, eps < eps_cr),
-    #     (mu * E_ct * eps_cr * (eps - eps_tu) / (eps_cr - eps_tu), eps < eps_tu),
-    #     (0, True) #  eps >= eps_tu)
-    # )
-
-    # # The following was replaced with a Property because otherwise it's not accepting sig_c_eps value
-    # # Stress over the cross section height
-    # # sig_c_z_ = sig_c_eps.subs(eps, eps_z)
-    # sig_c_z_ = sig_c_eps.subs(eps, eps_z_) # this was like this originally
-    #
-    # # The following was replaced with a Property because otherwise it's not accepting sig_c_eps value
-    # # Substitute eps_top to get sig as a function of (kappa, eps_bot, z)
-    # sig_c_z = sig_c_z_.subs(eps_top_solved)
-
-
-    sig_c_z_ = tr.Property()
-
-    def _get_sig_c_z_(self):
-        return self.sig_c_eps.subs(self.eps, self.eps_z_)
-
-
-    sig_c_z = tr.Property()
-
-    def _get_sig_c_z(self):
-        return self.sig_c_z_.subs(self.eps_top_solved)
-
-
-    # Reinforcement constitutive law
-    sig_s_eps = tr.Property()
-
-    # TODO: Provide a cleaner why for reinforcement law options
-    def _get_sig_s_eps(self):
-        if self.model.reinforcement_type == ReinforcementType.STEEL:
-            sig_s_eps = sp.Piecewise(
-                (-self.E_s * self.eps_sy, self.eps < -self.eps_sy),
-                (self.E_s * self.eps, self.eps < self.eps_sy),
-                (self.E_s * self.eps_sy, self.eps >= self.eps_sy)
-            )
-            if self.model.apply_material_safety_factors:
-                sig_s_eps = self.steel_material_factor * sig_s_eps
-        elif self.model.reinforcement_type == ReinforcementType.CARBON:
-            sig_s_eps = sp.Piecewise(
-                (0, self.eps < 0),
-                (self.E_s * self.eps, self.eps < self.eps_sy),
-                (self.E_s * self.eps_sy - self.E_s * (self.eps - self.eps_sy), self.eps < 2 * self.eps_sy),
-                (0, True)
-            )
-            if self.model.apply_material_safety_factors:
-                sig_s_eps = self.carbon_material_factor * sig_s_eps
-        else:
-            raise NameError('There\'s no reinforcement type with the name ' + self.model.reinforcement_typ)
-        return sig_s_eps
-
     # ----------------------------------------------------------------
     # SymbExpr protocol: Parameter names to be fetched from the model
     # ----------------------------------------------------------------
-    symb_model_params = ('E_ct', 'E_cc', 'eps_cr', 'eps_cy', 'eps_cu', 'mu', 'eps_tu', 'f_cm', 'f_cd', 'n')
+    symb_model_params = ()
 
     symb_expressions = [
         ('eps_z', ('kappa', 'eps_bot', 'z')),
-        ('sig_c_eps', ('eps',)), # the new implementation from [RC]
-        ('sig_c_z', ('kappa', 'eps_bot', 'z')),
-        ('sig_s_eps', ('eps', 'E_s', 'eps_sy')),
     ]
 
 
@@ -236,76 +50,65 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     """Class returning the moment curvature relationship."""
     name = 'Moment-Curvature'
 
-    reinforcement_type = ReinforcementType.STEEL
-    concrete_material_law = ConcreteMaterialLaw.DEFAULT
+    symb_class = MKappaSymbolic
+    cs_design = Instance(CrossSectionDesign, ())
 
-    f_cm = tr.Float(28)
+    tree = ['cs_design']
+    # Use PrototypedFrom only when the prototyped object is a class
+    # (The prototyped attribute behaves similarly
+    # to a delegated attribute, until it is explicitly
+    # changed; from that point forward, the prototyped attribute
+    # changes independently from its prototype.)
+    # (it's kind of like tr.DelegatesTo('cs_design.cross_section_shape'))
+    cross_section_shape = tr.DelegatesTo('cs_design')
+    cross_section_shape_ = tr.DelegatesTo('cs_design')
+    cross_section_layout = tr.DelegatesTo('cs_design')
+    matrix_ = tr.DelegatesTo('cs_design')
 
-    f_cd = tr.Float(28 * 0.85 / 1.5)
-    n = tr.Float(2)
+    # Geometry
+    H = tr.DelegatesTo('cross_section_shape_')
 
-    apply_material_safety_factors = tr.Bool(False)
+    DEPSTR = 'state_changed'
+
+    n_m = Int(100, DSC=True, desc='Number of discretization points along the height of the cross-section')
+
+    # @todo: fix the dependency - `H` should be replaced by _GEO
+    z_m = tr.Property(depends_on=DEPSTR)
+
+    @tr.cached_property
+    def _get_z_m(self):
+        return np.linspace(0, self.H, self.n_m)
+
+    low_kappa = Float(0.0, BC=True, GEO=True)
+    high_kappa = Float(0.00002, BC=True, GEO=True)
+    n_kappa = Int(100, BC=True)
+    step_kappa = tr.Property(Float, depends_on='low_kappa, high_kappa')
+    @tr.cached_property
+    def _get_step_kappa(self):
+        return float((self.high_kappa-self.low_kappa)/self.n_kappa)
+
+    kappa_slider = Float(0.0000001)
 
     ipw_view = View(
         Item('low_kappa', latex=r'\text{Low}~\kappa', editor=FloatEditor(step=0.00001)),
         Item('high_kappa', latex=r'\text{High}~\kappa', editor=FloatEditor(step=0.00001)),
         Item('n_kappa', latex='n_{\kappa}'),
         Item('n_m', latex='n_m'),
-        Item('kappa_slider', latex='\kappa',
-             editor=FloatRangeEditor(low_name='low_kappa',
-                                     high_name='high_kappa',
-                                     n_steps_name='n_kappa')
-             )
+        Item('kappa_slider', latex='\kappa', readonly=True),
+             # editor=FloatRangeEditor(low_name='low_kappa',
+             #                         high_name='high_kappa',
+             #                         n_steps_name='n_kappa')
+             # ),
+        time_editor=HistoryEditor(var='kappa_slider',
+                                  min_var='low_kappa',
+                                  max_var='high_kappa',
+                                  ),
     )
 
-    symb_class = MKappaSymbolic
-    cs_design = tr.Instance(CrossSectionDesign, ())
-
-    # Use PrototypedFrom only when the prototyped object is a class (The prototyped attribute behaves similarly
-    # to a delegated attribute, until it is explicitly changed; from that point forward, the prototyped attribute
-    # changes independently from its prototype.) (it's kind of like tr.DelegatesTo('cs_design.cross_section_shape'))
-    cross_section_shape = tr.PrototypedFrom('cs_design', 'cross_section_shape')
-    cross_section_layout = tr.PrototypedFrom('cs_design', 'cross_section_layout')
-    matrix = tr.PrototypedFrom('cross_section_layout', 'matrix')
-    reinforcement = tr.PrototypedFrom('cross_section_layout', 'reinforcement')
-
-    # Geometry
-    H = tr.DelegatesTo('cross_section_shape')
-
-    # Concrete
-    E_ct = tr.DelegatesTo('matrix')
-    E_cc = tr.DelegatesTo('matrix')
-    eps_cr = tr.DelegatesTo('matrix')
-    eps_tu = tr.DelegatesTo('matrix')
-    mu = tr.DelegatesTo('matrix')
-
-    eps_cy = tr.DelegatesTo('matrix')
-    eps_cu = tr.DelegatesTo('matrix')
-
-    # Reinforcement
-    z_j = tr.DelegatesTo('cross_section_layout')
-    A_j = tr.DelegatesTo('cross_section_layout')
-    E_j = tr.DelegatesTo('cross_section_layout')
-    eps_sy_j = tr.DelegatesTo('cross_section_layout')
-
-    DEPSTR = '+BC, +MAT, cross_section_shape.+GEO, matrix.+MAT, reinforcement.+MAT'
-
-    n_m = Int(100, DSC=True, desc='Number of discretization points along the height of the cross-section')
-
-    # @todo: fix the dependency - `H` should be replaced by _GEO
-    z_m = tr.Property(depends_on='n_m, H')
-
-    @tr.cached_property
-    def _get_z_m(self):
-        return np.linspace(0, self.H, self.n_m)
-
-    low_kappa = Float(0.0, BC=True)
-    high_kappa = Float(0.00002, BC=True)
-    n_kappa = Int(100, BC=True)
-
-    kappa_slider = Float(0.0000001)
 
     idx = tr.Property(depends_on='kappa_slider')
+
+    apply_material_safety_factors = tr.Bool(False)
 
     @tr.cached_property
     def _get_idx(self):
@@ -313,7 +116,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         idx = np.argmax(ks <= self.kappa_t)
         return idx
 
-    kappa_t = tr.Property(tr.Array(np.float_), depends_on='+BC')
+    kappa_t = tr.Property(tr.Array(np.float_), depends_on=DEPSTR)
     '''Curvature values for which the bending moment must be found
     '''
 
@@ -321,31 +124,41 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     def _get_kappa_t(self):
         return np.linspace(self.low_kappa, self.high_kappa, self.n_kappa)
 
+    z_j = tr.Property
+    def _get_z_j(self):
+        return self.cross_section_layout.z_j
+
+    A_j = tr.Property
+    def _get_A_j(self):
+        return self.cross_section_layout.A_j
+
     # Normal force in steel (tension and compression)
     def get_N_s_tj(self, kappa_t, eps_bot_t):
+        # get the strain at the height of the reinforcement
         eps_z_tj = self.symb.get_eps_z(
             kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis],
             self.z_j[np.newaxis, :]
         )
-        sig_s_tj = self.symb.get_sig_s_eps(
-            eps_z_tj, self.E_j, self.eps_sy_j
-        )
-        N_s_tj = np.einsum('j,tj->tj', self.A_j, sig_s_tj)
+        # Get the crack bridging force in each reinforcement layer
+        # given the corresponding crack-bridge law.
+        N_s_tj = self.cross_section_layout.get_N_tj(eps_z_tj)
         return N_s_tj
 
-    # Alternative implementation from [RC]
+    # TODO - [RC] avoid repeated evaluations of stress profile in
+    #            N and M calculations for the same inputs as it
+    #            is the case now.
     def get_sig_c_z(self, kappa_t, eps_bot_t, z_tm):
+        """Get the stress profile over the height"""
         eps_z = self.symb.get_eps_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
-        sig_c_z = self.symb.get_sig_c_eps(eps_z)    # here we can plug in different get_sig
+        sig_c_z = self.matrix_.get_sig(eps_z)
         return sig_c_z
 
     # Normal force in concrete (tension and compression)
     def get_N_c_t(self, kappa_t, eps_bot_t):
         z_tm = self.z_m[np.newaxis, :]
-        b_z_m = self.cross_section_shape.get_b(z_tm)
-        N_z_tm1 = b_z_m * self.symb.get_sig_c_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
-        # N_z_tm2 = b_z_m * self.get_sig_c_z(kappa_t, eps_bot_t, z_tm)
-        return np.trapz(N_z_tm1, x=z_tm, axis=-1)
+        b_z_m = self.cross_section_shape_.get_b(z_tm)
+        N_z_tm2 = b_z_m * self.get_sig_c_z(kappa_t, eps_bot_t, z_tm)
+        return np.trapz(N_z_tm2, x=z_tm, axis=-1)
 
     def get_N_t(self, kappa_t, eps_bot_t):
         N_s_t = np.sum(self.get_N_s_tj(kappa_t, eps_bot_t), axis=-1)
@@ -420,10 +233,11 @@ class MKappa(InteractiveModel, InjectSymbExpr):
             self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis],
             self.z_j[np.newaxis, :]
         )
-        sig_z_tj = self.symb.get_sig_s_eps(
-            eps_z_tj, self.E_j, self.eps_sy_j
-        )
-        return -np.einsum('j,tj,j->t', self.A_j, sig_z_tj, self.z_j)
+
+        # Get the crack bridging force in each reinforcement layer
+        # given the corresponding crack-bridge law.
+        N_tj = self.cross_section_layout.get_N_tj(eps_z_tj)
+        return -np.einsum('tj,j->t', N_tj, self.z_j)
 
     M_c_t = tr.Property(depends_on=DEPSTR)
     '''Bending moment (concrete)
@@ -432,17 +246,16 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     @tr.cached_property
     def _get_M_c_t(self):
         z_tm = self.z_m[np.newaxis, :]
-        b_z_m = self.cross_section_shape.get_b(z_tm)
-        N_z_tm1 = b_z_m * self.symb.get_sig_c_z(self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis], z_tm)
-        # N_z_tm2 = b_z_m * self.get_sig_c_z(self.kappa_t, self.eps_bot_t, z_tm)
-        return -np.trapz(N_z_tm1 * z_tm, x=z_tm, axis=-1)
+        b_z_m = self.cross_section_shape_.get_b(z_tm)
+        N_z_tm2 = b_z_m * self.get_sig_c_z(self.kappa_t, self.eps_bot_t, z_tm)
+        return -np.trapz(N_z_tm2 * z_tm, x=z_tm, axis=-1)
 
     M_t = tr.Property(depends_on=DEPSTR)
     '''Bending moment
     '''
-
     @tr.cached_property
     def _get_M_t(self):
+        print('M - k recalculated')
         eta_factor = 1.
         return eta_factor * (self.M_c_t + self.M_s_t)
 
@@ -488,14 +301,9 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     @tr.cached_property
     def _get_sig_tm(self):
-        return self.symb.get_sig_c_z(
-            self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis],
-            self.z_m[np.newaxis, :]
+        return self.get_sig_c_z(
+            self.kappa_t, self.eps_bot_t, self.z_m[np.newaxis, :]
         )
-        # the new implementation
-        # return self.get_sig_c_z(
-        #     self.kappa_t, self.eps_bot_t, self.z_m[np.newaxis, :]
-        # )
 
     M_norm = tr.Property(depends_on=DEPSTR)
     '''
@@ -609,7 +417,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
 
 class MKappaParamsStudy(ParametricStudy):
-
+    """TODO - put into a separate python module"""
     def __init__(self, mc):
         self.mc = mc
 
