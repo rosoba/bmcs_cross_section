@@ -518,31 +518,34 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     '''
     @tr.cached_property
     def _get_inv_M_kappa(self):
-        """cut off the descending tails"""
-        M_t = self.M_t
-        I_max = np.argmax(M_t)
-        I_min = np.argmin(M_t)
-        M_I = np.copy(M_t[I_min:I_max + 1])
-        kappa_I = np.copy(self.kappa_t[I_min:I_max + 1])
-        # find the index corresponding to zero kappa
-        idx = np.argmax(0 <= kappa_I)
-        # and modify the values such that the
-        # Values of moment are non-descending
-        M_plus = M_I[idx:]
-        M_diff = M_plus[:, np.newaxis] - M_plus[np.newaxis, :]
-        n_ij = len(M_plus)
-        ij = np.mgrid[0:n_ij:1, 0:n_ij:1]
-        M_diff[np.where(ij[1] >= ij[0])] = 0
-        i_x = np.argmin(M_diff, axis=1)
-        M_I[idx:] = M_plus[i_x]
-        return M_I, kappa_I
+        try:
+            """cut off the descending tails"""
+            M_t = self.M_t
+            I_max = np.argmax(M_t)
+            I_min = np.argmin(M_t)
+            M_I = np.copy(M_t[I_min:I_max + 1])
+            kappa_I = np.copy(self.kappa_t[I_min:I_max + 1])
+            # find the index corresponding to zero kappa
+            idx = np.argmax(0 <= kappa_I)
+            # and modify the values such that the
+            # Values of moment are non-descending
+            M_plus = M_I[idx:]
+            M_diff = M_plus[:, np.newaxis] - M_plus[np.newaxis, :]
+            n_ij = len(M_plus)
+            ij = np.mgrid[0:n_ij:1, 0:n_ij:1]
+            M_diff[np.where(ij[1] >= ij[0])] = 0
+            i_x = np.argmin(M_diff, axis=1)
+            M_I[idx:] = M_plus[i_x]
+            return M_I, kappa_I
+        except ValueError:
+            print('M inverse has not succeeded, the M-Kappa solution may have failed due to '
+                  'a wrong kappa range or not suitable material law!')
+            return np.array([0]), np.array([0])
+
 
     def get_kappa_M(self, M):
-        try:
-            M_I, kappa_I = self.inv_M_kappa
-            return np.interp(M, M_I, kappa_I)
-        except ValueError:
-            print('M inverse has not succeeded, the M-Kappa solution may have failed due to a wrong kappa range!')
+        M_I, kappa_I = self.inv_M_kappa
+        return np.interp(M, M_I, kappa_I)
 
     def plot_norm(self, ax1, ax2):
         idx = self.idx
