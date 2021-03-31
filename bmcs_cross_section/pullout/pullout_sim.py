@@ -13,7 +13,7 @@ from ibvpy.api import \
     TStepBC, Hist, XDomainFEInterface1D
 from ibvpy.bcond import BCDof
 from ibvpy.fets.fets1D5 import FETS1D52ULRH
-from ibvpy.tfunction import MonotonicScenario, CyclicLoadingScenario
+from ibvpy.tfunction import MonotonicLoadingScenario, CyclicLoadingScenario
 from ibvpy.tmodel.mats1D5.vmats1D5_bondslip1D import \
     MATSBondSlipMultiLinear, MATSBondSlipDP, \
     MATSBondSlipD, MATSBondSlipEP, MATSBondSlipFatigue
@@ -535,7 +535,7 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
     # Test setup parameters
     # =========================================================================
     loading_scenario = bu.EitherType(
-        options=[('monotonic', MonotonicScenario),
+        options=[('monotonic', MonotonicLoadingScenario),
                  ('cyclic', CyclicLoadingScenario)],
         report=True,
         desc='object defining the loading scenario'
@@ -648,7 +648,6 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
 
     @cached_property
     def _get_domains(self):
-        print('REGENERATE DOMAIN')
         return [(self.dots_grid, self.mat_mod_)]
 
     # =========================================================================
