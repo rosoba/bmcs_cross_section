@@ -17,5 +17,4 @@ dependencies:
   - bmcs-utils
   - bmcs-ibvpy
   - openpyxl
-
   - bmcs-matmod
