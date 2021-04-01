@@ -12,8 +12,17 @@ class ReinfLayer(InteractiveModel):
     z = Float(50, CS=True)
     """z positions of reinforcement layers"""
 
+    A = Float(100, CS=True)
+    """Cross sectional area"""
+
     matmod = EitherType(options=[('steel', SteelReinfMatMod),
                                  ('carbon', CarbonReinfMatMod)])
+
+    ipw_view = View(
+        Item('matmod', latex=r'\mathrm{behavior}'),
+        Item('z', latex='z \mathrm{[mm]}'),
+        Item('A', latex='A \mathrm{[mm^2]}'),
+    )
 
     tree = ['matmod']
 

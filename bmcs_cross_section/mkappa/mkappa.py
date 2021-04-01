@@ -90,8 +90,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     kappa_slider = Float(0.0000001)
 
     ipw_view = View(
-        Item('low_kappa', latex=r'\text{Low}~\kappa', editor=FloatEditor(step=0.00001)),
-        Item('high_kappa', latex=r'\text{High}~\kappa', editor=FloatEditor(step=0.00001)),
+        Item('low_kappa', latex=r'\text{Low}~\kappa'), #, editor=FloatEditor(step=0.00001)),
+        Item('high_kappa', latex=r'\text{High}~\kappa'), # , editor=FloatEditor(step=0.00001)),
         Item('n_kappa', latex='n_{\kappa}'),
         Item('n_m', latex='n_m'),
         Item('kappa_slider', latex='\kappa', readonly=True),
