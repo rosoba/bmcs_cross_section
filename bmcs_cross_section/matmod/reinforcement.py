@@ -14,7 +14,10 @@ class SteelReinfMatModSymbExpr(bu.SymbExpr):
 
     eps_sy, E_s = sp.symbols('varepsilon_sy, E_s', real=True, nonnegative=True)
 
-    sig = sp.Piecewise(
+    # steel_material_factor = 1. / 1.15
+    steel_material_factor = 1
+
+    sig = steel_material_factor * sp.Piecewise(
         (-E_s * eps_sy, eps < -eps_sy),
         (E_s * eps, eps < eps_sy),
         (E_s * eps_sy, eps >= eps_sy)
@@ -59,9 +62,13 @@ class CarbonReinfMatModSymbExpr(bu.SymbExpr):
 
     f_t, E = sp.symbols('f_t, E', real=True, nonnegative=True)
 
-    sig = sp.Piecewise(
+    # carbon_material_factor = 1. / 1.5
+    carbon_material_factor = 1
+
+    sig = carbon_material_factor * sp.Piecewise(
         (0, eps < 0),
         (E * eps, eps < f_t/E),
+        (f_t - E * (eps - f_t/E), eps < 2 * f_t/E),
         (0, True)
     )
 

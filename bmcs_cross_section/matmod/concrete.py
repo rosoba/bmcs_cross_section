@@ -26,7 +26,8 @@ class PWLConcreteMatModSymbExpr(bu.SymbExpr):
     )
 
     # TODO - declare it to a material parameter
-    concrete_material_factor = 0.85 / 1.5
+    # concrete_material_factor = 0.85 / 1.5
+    concrete_material_factor = 1
 
     sig = concrete_material_factor * sp.Piecewise(
         (0, eps < eps_cu),

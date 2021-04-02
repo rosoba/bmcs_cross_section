@@ -32,10 +32,6 @@ class MKappaSymbolic(SymbExpr):
     eps_top_solved = {eps_top: sp.solve(kappa + eps_z_.diff(z), eps_top)[0]}
     eps_z = eps_z_.subs(eps_top_solved)
 
-    steel_material_factor = 1. / 1.15
-    carbon_material_factor = 1. / 1.5       # 1.3
-    concrete_material_factor = 0.85 / 1.5
-
     # ----------------------------------------------------------------
     # SymbExpr protocol: Parameter names to be fetched from the model
     # ----------------------------------------------------------------

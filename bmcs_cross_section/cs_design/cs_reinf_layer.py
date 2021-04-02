@@ -8,6 +8,7 @@ from bmcs_cross_section.matmod import ReinfMatMod, SteelReinfMatMod, CarbonReinf
 class ReinfLayer(InteractiveModel):
     # TODO: changes in the ipw interactive window doesn't reflect on mkappa
     #  (maybe because these are lists and changing the elements doesn't notify)
+    name = 'Reinf layer'
 
     z = Float(50, CS=True)
     """z positions of reinforcement layers"""
@@ -36,6 +37,7 @@ class ReinfLayer(InteractiveModel):
         ax.fill_between(eps_range, N_range, 0, color='red', alpha=0.1)
         ax.set_xlabel(r'$\varepsilon$ [-]')
         ax.set_ylabel(r'$F$ [N]')
+
 
 class FabricLayer(ReinfLayer):
     """Reinforcement with a grid structure
