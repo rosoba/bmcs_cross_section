@@ -6,8 +6,13 @@ import traits.api as tr
 from .matmod import MatMod
 
 class ConcreteMatMod(MatMod):
-    pass
 
+    factor = bu.Float(1, MAT=True) # 0.85 / 1.5
+    '''Factor to embed a EC2 based safety factors.
+    This multiplication qualitatively modifies the material
+    behavior which is not correct. No distinction between
+    the scatter of strength and stiffness parameters.
+    '''
 
 class PWLConcreteMatModSymbExpr(bu.SymbExpr):
     """Piecewise linear concrete material law
@@ -25,10 +30,7 @@ class PWLConcreteMatModSymbExpr(bu.SymbExpr):
         real=True, nonpositive=True
     )
 
-    # TODO - declare it to a material parameter
-    concrete_material_factor = 0.85 / 1.5
-
-    sig = concrete_material_factor * sp.Piecewise(
+    sig = sp.Piecewise(
         (0, eps < eps_cu),
         (E_cc * eps_cy, eps < eps_cy),
         (E_cc * eps, eps < 0),
@@ -75,6 +77,7 @@ class PWLConcreteMatMod(ConcreteMatMod, bu.InjectSymbExpr):
                                     the crack because of short steel fibers in the mixture)')
 
     ipw_view = bu.View(
+        bu.Item('factor'),
         bu.Item('E_ct', latex=r'E_\mathrm{ct} \mathrm{[N/mm^{2}]}'),
         bu.Item('E_cc', latex=r'E_\mathrm{cc} \mathrm{[N/mm^{2}]}'),
         bu.Item('eps_cr', latex=r'\varepsilon_{cr}'),
@@ -88,7 +91,7 @@ class PWLConcreteMatMod(ConcreteMatMod, bu.InjectSymbExpr):
         return np.linspace(1.1*self.eps_cu, 1.1*self.eps_tu,300)
 
     def get_sig(self,eps):
-        return self.symb.get_sig(eps)
+        return self.factor * self.symb.get_sig(eps)
 
 
 class EC2ConcreteMatModSymbExpr(bu.SymbExpr):
@@ -160,10 +163,6 @@ class EC2ConcreteMatModSymbExpr(bu.SymbExpr):
         (0, True)
     )
 
-    # if self.model.apply_material_safety_factors:
-    #     # sig_c_eps = sig_c_eps - 8 # F_ck = F_cm - 8
-    #     sig_c_eps = self.concrete_material_factor * sig_c_eps
-
     symb_model_params = ('E_ct', 'E_cc', 'eps_cr', 'eps_cy', 'eps_cu',
                          'mu', 'eps_tu', 'f_cd', 'f_cm', 'n')
 
@@ -210,6 +209,7 @@ class EC2ConcreteMatMod(ConcreteMatMod, bu.InjectSymbExpr):
                                     the crack because of short steel fibers in the mixture)')
 
     ipw_view = bu.View(
+        bu.Item('factor'),
         bu.Item('E_ct', latex=r'E_\mathrm{ct} \mathrm{[N/mm^{2}]}'),
         bu.Item('E_cc', latex=r'E_\mathrm{cc} \mathrm{[N/mm^{2}]}'),
         bu.Item('eps_cr', latex=r'\varepsilon_{cr}'),
@@ -226,36 +226,5 @@ class EC2ConcreteMatMod(ConcreteMatMod, bu.InjectSymbExpr):
         return np.linspace(self.eps_cu, self.eps_tu, 300)
 
     def get_sig(self, eps):
-        return self.symb.get_sig(eps)
-
-    # TODO - [HS] check if the lines below can be deleted
-    #
-    # Moved already to the if statement but was left here in case the if would be changed
-    # sig_c_eps = concrete_material_factor * sp.Piecewise(
-    #     (0, eps < eps_cu),
-    #     (E_cc * eps_cy, eps < eps_cy),
-    #     (E_cc * eps, eps < 0),
-    #     (E_ct * eps, eps < eps_cr),
-    #     (mu * E_ct * eps_cr, eps < eps_tu),
-    #     (0, True) #  eps >= eps_tu)
-    # )
-
-    # Alternative with descending branch instead of sudden drop for tension
-    # sig_c_eps = sp.Piecewise(
-    #     (0, eps < eps_cu),
-    #     (E_cc * eps_cy, eps < eps_cy),
-    #     (E_cc * eps, eps < 0),
-    #     (E_ct * eps, eps < eps_cr),
-    #     (mu * E_ct * eps_cr * (eps - eps_tu) / (eps_cr - eps_tu), eps < eps_tu),
-    #     (0, True) #  eps >= eps_tu)
-    # )
-
-    # # The following was replaced with a Property because otherwise it's not accepting sig_c_eps value
-    # # Stress over the cross section height
-    # # sig_c_z_ = sig_c_eps.subs(eps, eps_z)
-    # sig_c_z_ = sig_c_eps.subs(eps, eps_z_) # this was like this originally
-    #
-    # # The following was replaced with a Property because otherwise it's not accepting sig_c_eps value
-    # # Substitute eps_top to get sig as a function of (kappa, eps_bot, z)
-    # sig_c_z = sig_c_z_.subs(eps_top_solved)
+        return self.factor * self.symb.get_sig(eps)
 

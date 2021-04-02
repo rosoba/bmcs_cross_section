@@ -5,7 +5,13 @@ import numpy as np
 import traits.api as tr
 
 class ReinfMatMod(MatMod):
-    pass
+
+    factor = bu.Float(1, MAT=True) # 0.85 / 1.5
+    '''Factor to embed a EC2 based safety factors.
+    This multiplication qualitatively modifies the material
+    behavior which is not correct. No distinction between
+    the scatter of strength and stiffness parameters.
+    '''
 
 class SteelReinfMatModSymbExpr(bu.SymbExpr):
     """Piecewise linear concrete material law
@@ -41,6 +47,7 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
         return self.f_sy / self.E_s
 
     ipw_view = bu.View(
+        bu.Item('factor'),
         bu.Item('E_s', latex=r'E_\mathrm{s} \mathrm{[N/mm^{2}]}'),
         bu.Item('f_sy', latex=r'f_\mathrm{sy} \mathrm{[N/mm^{2}]}'),
         bu.Item('eps_sy', latex=r'\varepsilon_\mathrm{sy} \mathrm{[-]}'),
@@ -50,7 +57,7 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
         return np.linspace(- 1.1*self.eps_sy, 1.1*self.eps_sy,300)
 
     def get_sig(self,eps):
-        return self.symb.get_sig(eps)
+        return self.factor * self.symb.get_sig(eps)
 
 class CarbonReinfMatModSymbExpr(bu.SymbExpr):
     """Piecewise linear concrete material law
@@ -87,6 +94,7 @@ class CarbonReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
         return self.f_t / self.E
 
     ipw_view = bu.View(
+        bu.Item('factor'),
         bu.Item('E', latex=r'E \mathrm{[N/mm^{2}]}'),
         bu.Item('f_t', latex=r'f_\mathrm{t} \mathrm{[N/mm^{2}]}'),
         bu.Item('eps_cr', latex=r'\varepsilon_\mathrm{cr} \mathrm{[-]}'),
@@ -96,4 +104,4 @@ class CarbonReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
         return np.linspace(- 0.1*self.eps_cr, 1.1*self.eps_cr,300)
 
     def get_sig(self,eps):
-        return self.symb.get_sig(eps)
+        return self.factor * self.symb.get_sig(eps)
