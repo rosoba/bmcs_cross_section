@@ -6,7 +6,7 @@ import traits.api as tr
 
 class ReinfMatMod(MatMod):
 
-    factor = bu.Float(1, MAT=True) # 0.85 / 1.5
+    factor = bu.Float(1, MAT=True) # 1. / 1.15
     '''Factor to embed a EC2 based safety factors.
     This multiplication qualitatively modifies the material
     behavior which is not correct. No distinction between
@@ -20,10 +20,7 @@ class SteelReinfMatModSymbExpr(bu.SymbExpr):
 
     eps_sy, E_s = sp.symbols('varepsilon_sy, E_s', real=True, nonnegative=True)
 
-    # steel_material_factor = 1. / 1.15
-    steel_material_factor = 1
-
-    sig = steel_material_factor * sp.Piecewise(
+    sig = sp.Piecewise(
         (-E_s * eps_sy, eps < -eps_sy),
         (E_s * eps, eps < eps_sy),
         (E_s * eps_sy, eps >= eps_sy)
@@ -59,7 +56,7 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
     def get_eps_plot_range(self):
         return np.linspace(- 1.1*self.eps_sy, 1.1*self.eps_sy,300)
 
-    def get_sig(self,eps):
+    def get_sig(self, eps):
         return self.factor * self.symb.get_sig(eps)
 
 class CarbonReinfMatModSymbExpr(bu.SymbExpr):
@@ -69,10 +66,7 @@ class CarbonReinfMatModSymbExpr(bu.SymbExpr):
 
     f_t, E = sp.symbols('f_t, E', real=True, nonnegative=True)
 
-    # carbon_material_factor = 1. / 1.5
-    carbon_material_factor = 1
-
-    sig = carbon_material_factor * sp.Piecewise(
+    sig = sp.Piecewise(
         (0, eps < 0),
         (E * eps, eps < f_t/E),
         (f_t - E * (eps - f_t/E), eps < 2 * f_t/E),
