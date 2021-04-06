@@ -18,15 +18,17 @@ class SteelReinfMatModSymbExpr(bu.SymbExpr):
     """
     eps = sp.Symbol('eps', real=True)
 
-    eps_sy, E_s = sp.symbols('varepsilon_sy, E_s', real=True, nonnegative=True)
+    eps_sy, eps_ud, E_s = sp.symbols(r'varepsilon_sy, varepsilon_ud, E_s', real=True, nonnegative=True)
 
     sig = sp.Piecewise(
+        (0, eps < -eps_ud),
         (-E_s * eps_sy, eps < -eps_sy),
         (E_s * eps, eps < eps_sy),
-        (E_s * eps_sy, eps >= eps_sy)
+        (E_s * eps_sy, eps < eps_ud),
+        (0, True),
     )
 
-    symb_model_params = ('E_s', 'eps_sy')
+    symb_model_params = ('E_s', 'eps_sy', 'eps_ud')
 
     symb_expressions = [
         ('sig', ('eps',)),
@@ -40,6 +42,7 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
 
     E_s = bu.Float(200000, MAT=True, desc='E modulus of steel')
     f_sy = bu.Float(500, MAT=True, desc='steel yield stress')
+    eps_ud = bu.Float(0.025, MAT=True, desc='steel failure strain')
 
     eps_sy = tr.Property(bu.Float, depends_on='+MAT')
     @tr.cached_property
@@ -50,11 +53,12 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
         bu.Item('factor'),
         bu.Item('E_s', latex=r'E_\mathrm{s} \mathrm{[N/mm^{2}]}'),
         bu.Item('f_sy', latex=r'f_\mathrm{sy} \mathrm{[N/mm^{2}]}'),
-        bu.Item('eps_sy', latex=r'\varepsilon_\mathrm{sy} \mathrm{[-]}'),
+        bu.Item('eps_ud', latex=r'\varepsilon_\mathrm{ud} \mathrm{[-]}'),
+        bu.Item('eps_sy', latex=r'\varepsilon_\mathrm{sy} \mathrm{[-]}', readonly=True),
     )
 
     def get_eps_plot_range(self):
-        return np.linspace(- 1.1*self.eps_sy, 1.1*self.eps_sy,300)
+        return np.linspace(- 1.1*self.eps_ud, 1.1*self.eps_ud,300)
 
     def get_sig(self, eps):
         return self.factor * self.symb.get_sig(eps)
