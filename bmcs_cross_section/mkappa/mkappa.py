@@ -5,7 +5,7 @@ from bmcs_cross_section.cs_design import CrossSectionDesign
 from scipy.optimize import root
 from bmcs_utils.api import \
     InteractiveModel, Instance, Item, View, mpl_align_xaxis, ParametricStudy, \
-    SymbExpr, InjectSymbExpr, Float, Int, FloatRangeEditor, FloatEditor, HistoryEditor
+    SymbExpr, InjectSymbExpr, Float, Int, Bool, FloatRangeEditor, FloatEditor, HistoryEditor
 
 class SolutionNotFoundError(ValueError):
     pass
@@ -89,6 +89,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         Item('low_kappa', latex=r'\text{Low}~\kappa'), #, editor=FloatEditor(step=0.00001)),
         Item('high_kappa', latex=r'\text{High}~\kappa'), # , editor=FloatEditor(step=0.00001)),
         Item('n_kappa', latex='n_{\kappa}'),
+        Item('plot_strain'),
         Item('n_m', latex='n_m'),
         Item('kappa_slider', latex='\kappa', readonly=True),
              # editor=FloatRangeEditor(low_name='low_kappa',
@@ -288,7 +289,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     @tr.cached_property
     def _get_eps_tm(self):
-        return self.get_eps_z(self.kappa_t[:, np.newaxis],
+        return self.symb.get_eps_z(self.kappa_t[:, np.newaxis],
                               self.eps_bot_t[:, np.newaxis], self.z_m[np.newaxis, :])
 
     sig_tm = tr.Property(depends_on=DEPSTR)
@@ -365,17 +366,14 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         mpl_align_xaxis(ax2, ax3)
 
     M_scale = Float(1e+6)
+    plot_strain = Bool(False)
 
     def plot(self, ax1, ax2, ax3):
         self.plot_mk_and_stress_profile(ax1, ax2)
-        try:
-            M, kappa = self.inv_M_kappa
-            ax3.plot(M / self.M_scale, kappa)
-        except ValueError:
-            print('M inverse has not succeeded, the M-Kappa solution may have failed due to a wrong kappa range!')
-
-        ax3.set_xlabel('Moment [kNm]')
-        ax3.set_ylabel('Curvature[mm$^{-1}$]')
+        if self.plot_strain:
+            self.plot_strain_profile(ax3)
+        else:
+            self.plot_mk_inv(ax3)
 
     @staticmethod
     def subplots(fig):
@@ -384,6 +382,16 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     def update_plot(self, axes):
         self.plot(*axes)
+
+    def plot_mk_inv(self, ax3):
+        try:
+            M, kappa = self.inv_M_kappa
+            ax3.plot(M / self.M_scale, kappa)
+        except ValueError:
+            print('M inverse has not succeeded, the M-Kappa solution may have failed due to a wrong kappa range!')
+
+        ax3.set_xlabel('Moment [kNm]')
+        ax3.set_ylabel('Curvature[mm$^{-1}$]')
 
     def plot_mk_and_stress_profile(self, ax1, ax2):
         self.plot_mk(ax1)
@@ -402,11 +410,17 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         mpl_align_xaxis(ax2, ax22)
 
     def plot_mk(self, ax1):
-        ax1.plot(self.kappa_t, self.M_t / self.M_scale, label='bmcs_cs_mkappa')
+        ax1.plot(self.kappa_t, self.M_t / self.M_scale, label='M-K')
         ax1.set_ylabel('Moment [kNm]')
         ax1.set_xlabel('Curvature [mm$^{-1}$]')
         ax1.legend()
 
+    def plot_strain_profile(self, ax):
+        ax.set_ylabel('z [mm]')
+        ax.set_xlabel('$\eps$ [-]')
+        ax.plot(self.eps_tm[self.idx, :], self.z_m)
+        ax.axvline(0, linewidth=0.8, color='k')
+        ax.fill_betweenx(self.z_m, self.eps_tm[self.idx, :], 0, alpha=0.1)
 
     def get_mk(self):
         return self.M_t / self.M_scale, self.kappa_t
