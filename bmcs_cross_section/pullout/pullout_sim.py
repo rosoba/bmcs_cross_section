@@ -21,7 +21,8 @@ from ibvpy.tmodel.mats1D5.vmats1D5_bondslip1D_trilinear import MATSBondSlipTriLi
 from ibvpy.view.plot2d import Vis2D
 from ibvpy.view.reporter import RInputRecord
 from ibvpy.view.ui import BMCSLeafNode, BMCSRootNode
-from ibvpy.view.window import BMCSWindow, PlotPerspective
+from ibvpy.view.window.bmcs_window import BMCSWindow
+from ibvpy.view.window.bmcs_viz_sheet import PlotPerspective
 from scipy import interpolate as ip
 from scipy.integrate import cumtrapz
 from traits.api import \
