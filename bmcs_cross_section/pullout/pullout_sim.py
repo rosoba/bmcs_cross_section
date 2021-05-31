@@ -16,12 +16,11 @@ from ibvpy.fets.fets1D5 import FETS1D52ULRH
 from ibvpy.tfunction import MonotonicLoadingScenario, CyclicLoadingScenario
 from ibvpy.tmodel.mats1D5.vmats1D5_bondslip1D import \
     MATSBondSlipMultiLinear, MATSBondSlipDP, \
-    MATSBondSlipD, MATSBondSlipEP, MATSBondSlipFatigue
+    MATSBondSlipD, MATSBondSlipEP
 from ibvpy.tmodel.mats1D5.vmats1D5_bondslip1D_trilinear import MATSBondSlipTriLinear
 from ibvpy.view.plot2d import Vis2D
 from ibvpy.view.reporter import RInputRecord
 from ibvpy.view.ui import BMCSLeafNode, BMCSRootNode
-from ibvpy.view.window import BMCSWindow, PlotPerspective
 from scipy import interpolate as ip
 from scipy.integrate import cumtrapz
 from traits.api import \
@@ -385,7 +384,7 @@ class PulloutHist(Hist, bu.Model, Vis2D):
 #        self.tstep_source.mats_eval.plot(ax_G_t)
 class PulloutHist2(PulloutHist):
 
-    def plot_Pw(self, ax):
+    def plot_Pw(self, ax, color='blue'):
         P_range, w_unloaded, w_loaded = self.get_Pw_t()
         idx = self.get_time_idx(self.t_slider)
         P = P_range[idx]
@@ -393,8 +392,8 @@ class PulloutHist2(PulloutHist):
         w_L_b = w_unloaded[idx]
         ax.plot(w,P  * 0.001,marker='o', color='magenta')
         ax.plot(w_L_b, P * 0.001,marker='o', color='magenta')
-        ax.plot(w_loaded, P_range * 0.001, color='blue', label=r'$w_\mathrm{loaded}$')
-        ax.plot(w_unloaded, P_range * 0.001, color='blue', linestyle='dashed',
+        ax.plot(w_loaded, P_range * 0.001, color=color, label=r'$w_\mathrm{loaded}$')
+        ax.plot(w_unloaded, P_range * 0.001, color=color, linestyle='dashed',
                 label=r'$w_\mathrm{unloaded}$')
         ax.set_ylabel(r'$P$ [kN]')
         ax.set_xlabel(r'$w$ [mm]')
@@ -432,20 +431,22 @@ class PulloutHist2(PulloutHist):
         #tau_range = self.symb.get_tau_w_x(x_range, w) * np.ones_like(x_range)
 
         #w_range = w_0_range
-        eps_max = np.max(eps_f_range) # self.symb.get_eps_w_f_x(x_range, w_argmax))
-        sig_max = np.max(sig_f_range) # self.symb.get_sig_w_f_x(x_range, w_argmax))
-        eps_min = np.min(eps_m_range) # self.symb.get_eps_w_m_x(x_range, w_argmax))
-        sig_min = np.min(sig_m_range) # self.symb.get_sig_w_m_x(x_range, w_argmax))
-        u_min = np.min(u_m_range) # self.symb.get_u_w_m_x(x_range, w_argmax))
+        eps_max = np.max(np.hstack([eps_f_range, eps_m_range])) # self.symb.get_eps_w_f_x(x_range, w_argmax))
+        eps_min = np.min(np.hstack([eps_m_range, eps_f_range])) # self.symb.get_eps_w_m_x(x_range, w_argmax))
+        sig_max = np.max(np.hstack([sig_f_range, sig_m_range])) # self.symb.get_sig_w_f_x(x_range, w_argmax))
+        sig_min = np.min(np.hstack([sig_m_range, sig_f_range])) # self.symb.get_sig_w_m_x(x_range, w_argmax))
+        u_max = np.max(np.hstack([u_m_range,u_f_range])) # self.symb.get_u_w_m_x(x_range, w_argmax))
+        u_min = np.min(np.hstack([u_m_range,u_f_range])) # self.symb.get_u_w_m_x(x_range, w_argmax))
 
         N_f_range = A_f * sig_f_range
         N_m_range = A_m * sig_m_range
         T_range = p * tau_range
 
-        N_max = np.max(N_f_range)
+        N_max = np.max(np.hstack([N_f_range, N_m_range]))
         u_max = w_max
-        N_min = np.min(N_m_range)
+        N_min = np.min(np.hstack([N_m_range, N_f_range]))
         T_max = np.max(T_range)
+        T_min = np.min(T_range)
         x_min = x_range[0]
         x_max = x_range[-1]
 
@@ -494,7 +495,7 @@ class PulloutHist2(PulloutHist):
             ax_tau, x_range, T_range,
             xlabel='$x$ [mm]', ylabel=r'$T$ [N/mm]',
             color='red', alpha=0.2,
-            ylim=(0, T_max), xlim=(x_min,x_max)
+            ylim=(np.min([0,T_min]), T_max), xlim=(x_min,x_max)
             )
 
     def subplots(self, fig):
@@ -595,21 +596,6 @@ class Geometry(BMCSLeafNode, RInputRecord):
     )
 
 
-class DataSheet(HasStrictTraits):
-    data = Array(np.float_)
-
-    view = View(
-        Item('data',
-             show_label=False,
-             resizable=True,
-             editor=ArrayViewEditor(titles=['x', 'y', 'z'],
-                                    format='%.4f',
-                                    )
-             ),
-        width=0.5,
-        height=0.6
-    )
-
 class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
     name = 'Pullout'
 
@@ -620,9 +606,14 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
     def _get_history(self):
         return self.hist
 
+    time_line = tr.Property()
+    @tr.cached_property
+    def _get_time_line(self):
+        return self.sim.tline
+
     node_name = 'Pull out simulation'
 
-    tree = ['cross_section', 'geometry', 'material_model', 'loading_scenario', 'history']
+    tree = ['time_line', 'cross_section', 'geometry', 'material_model', 'loading_scenario', 'history']
 
     def run(self):
         self.sim.run()
@@ -668,19 +659,6 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
                                       )
     )
 
-    tree_view = View(
-        Group(
-            Item('mats_eval_type', resizable=True, full_size=True),
-            Item('control_variable', resizable=True, full_size=True),
-            Item('w_max', resizable=True, full_size=True),
-            Item('n_e_x', resizable=True, full_size=True),
-            Item('fixed_boundary'),
-            Group(
-                Item('loading_scenario@', show_label=False),
-            )
-        )
-    )
-
     @tr.on_trait_change("state_changed")
     def report_change(self):
         self.model_structure_changed = True
@@ -691,7 +669,7 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
     loading_scenario = bu.EitherType(
         options=[('monotonic', MonotonicLoadingScenario),
                  ('cyclic', CyclicLoadingScenario)],
-        report=True,
+        report=True, TIME=True,
         desc='object defining the loading scenario'
     )
 
@@ -748,10 +726,11 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
     material_model = bu.EitherType(
         options=[('multilinear', MATSBondSlipMultiLinear),
                  ('trilinear', MATSBondSlipTriLinear),
-                 ('damage', MATSBondSlipD),
+                 # ('damage', MATSBondSlipD),
                  ('elasto-plasticity', MATSBondSlipEP),
-                 ('damage-plasticity', MATSBondSlipDP),
-                 ('cumulative fatigue', MATSBondSlipFatigue)],
+                 # ('damage-plasticity', MATSBondSlipDP),
+                 # ('cumulative fatigue', MATSBondSlipFatigue)
+                 ],
         MAT=True
     )
     '''Material model'''
@@ -946,6 +925,7 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
         if len(self.history.U_t) == 0:
             return
         ax_geo, ax_Pw = axes
+        self.history.t_slider = self.t
         self.history.plot_geo(ax_geo)
         self.history.plot_Pw(ax_Pw)
 
