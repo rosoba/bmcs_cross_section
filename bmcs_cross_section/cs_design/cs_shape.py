@@ -106,9 +106,9 @@ class Circle(CrossSectionShapeBase):
 @tr.provides(ICrossSectionShape)
 class TShape(CrossSectionShapeBase):
 
-    B_f = Float(200, GEO=True)
-    B_w = Float(50, GEO=True)
-    H_w = Float(150, GEO=True)
+    B_f = Float(400, GEO=True)
+    B_w = Float(100, GEO=True)
+    H_w = Float(300, GEO=True)
 
     ipw_view = View(
         *CrossSectionShapeBase.ipw_view.content,
