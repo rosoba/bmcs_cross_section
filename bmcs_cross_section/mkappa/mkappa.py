@@ -252,7 +252,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     '''
     @tr.cached_property
     def _get_M_t(self):
-        print('M - k recalculated')
+        # print('M - k recalculated')
         eta_factor = 1.
         return eta_factor * (self.M_c_t + self.M_s_t)
 
