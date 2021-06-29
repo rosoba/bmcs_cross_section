@@ -14,10 +14,9 @@ from ibvpy.api import \
 from ibvpy.bcond import BCDof
 from ibvpy.fets.fets1D5 import FETS1D52ULRH
 from ibvpy.tfunction import MonotonicLoadingScenario, CyclicLoadingScenario
-from ibvpy.tmodel.mats1D5.vmats1D5_bondslip1D import \
-    MATSBondSlipMultiLinear, MATSBondSlipDP, \
-    MATSBondSlipD, MATSBondSlipEP
-from ibvpy.tmodel.mats1D5.vmats1D5_bondslip1D_trilinear import MATSBondSlipTriLinear
+from ibvpy.api import \
+    MATS1D5BondSlipMultiLinear, \
+    MATS1D5BondSlipD, MATS1D5BondSlipEP, MATS1D5BondSlipTriLinear
 from ibvpy.view.plot2d import Vis2D
 from ibvpy.view.reporter import RInputRecord
 from ibvpy.view.ui import BMCSLeafNode, BMCSRootNode
@@ -146,6 +145,18 @@ class PulloutHist(Hist, bu.Model, Vis2D):
         #     sig_tEms = sig_tEms[0,...]
         return sig_tEms
 
+    U_bar_t = tr.Property
+    def _get_U_bar_t(self):
+        return self.get_U_bar_t()
+
+    W_t = tr.Property
+    def _get_W_t(self):
+        return self.get_W_t()
+
+    G_t = tr.Property
+    def _get_G_t(self):
+        return self.W_t - self.U_bar_t
+
     def get_U_bar_t(self):
         xmodel = self.tstep_source.fe_domain[0].xmodel
         fets = xmodel.fets
@@ -158,6 +169,33 @@ class PulloutHist(Hist, bu.Model, Vis2D):
         U_bar_t = 0.5 * np.einsum('m,Em,s,tEms,tEms->t',
                                   w_ip, J_det, A, sig_tEms, eps_tEms)
         return U_bar_t
+
+    G_omega_t = tr.Property
+    def _get_G_omega_t(self):
+        xmodel = self.tstep_source.fe_domain[0].xmodel
+        mats = self.tstep_source.material_model_
+        fets = xmodel.fets
+        A = xmodel.A
+        eps_tEms = self.get_eps_tEms(slice(0, None))
+        _, D0_rs = mats.get_corr_pred(np.array([[0,0,0]]), 0,
+                           kappa_n=np.array([0]), omega_n=np.array([0]))
+        w_ip = fets.ip_weights
+        J_det = xmodel.det_J_Em
+        Y_Em_t = 0.5 * np.einsum('m,Em,s,tEmr,rs,tEms->tEm',
+                                  w_ip, J_det, A, eps_tEms, D0_rs[0], eps_tEms)
+        omega_Em_t = np.array([state[0]['omega_n'] for state in self.state_vars])
+        #G_omega_Em_t = cumtrapz(Y_Em_t, omega_Em_t, axis=0, initial = 0)
+        #return np.sum(G_omega_Em_t, axis=(1,2))
+
+        t = self.t
+        d_omega_Em_t = (
+                (omega_Em_t[1:] - omega_Em_t[:-1]) / (t[1:] - t[:-1])[:, None, None]
+        )
+        #print(Y_Em_t.shape, d_omega_Em_t.shape)
+        dG_omega_t = np.hstack([
+            np.einsum('tEm,tEm->t', Y_Em_t[:-1], d_omega_Em_t), [0]])
+        return cumtrapz(dG_omega_t, t, initial=0)
+
 
     def get_W_t(self):
         P_t, _, w_L = self.get_Pw_t()
@@ -210,8 +248,9 @@ class PulloutHist(Hist, bu.Model, Vis2D):
 
     def plot_G_t(self, ax,
                  label_U='U(t)', label_W='W(t)',
-                 color_U='blue', color_W='red'):
+                 color_U='green', color_W='black'):
 
+        #_, _, w_t = self.get_Pw_t()
         t = self.t
         U_bar_t = self.get_U_bar_t()
         W_t = self.get_W_t()
@@ -219,17 +258,20 @@ class PulloutHist(Hist, bu.Model, Vis2D):
             return
         ax.plot(t, W_t, color=color_W, label=label_W)
         ax.plot(t, U_bar_t, color=color_U, label=label_U)
-        ax.fill_between(t, W_t, U_bar_t, facecolor='gray', alpha=0.5,
+        ax.plot(t, U_bar_t+self.G_omega_t, color='black', linestyle='dashed', label='G_t')
+        ax.fill_between(t, W_t, U_bar_t, facecolor='gray', alpha=0.3,
                         label='G(t)')
+        ax.fill_between(t, U_bar_t, 0, facecolor='green', alpha=0.3)
         ax.set_ylabel('energy [Nmm]')
-        ax.set_xlabel('time [-]')
+        ax.set_xlabel(r'$t$ [-]')
         ax.legend()
 
     def plot_dG_t(self, ax, *args, **kw):
+        #_, _, w_t = self.get_Pw_t()
         t = self.t
         dG = self.get_dG_t()
         ax.plot(t, dG, color='black', label='dG/dt')
-        ax.fill_between(t, 0, dG, facecolor='blue', alpha=0.05)
+        ax.fill_between(t, 0, dG, facecolor='gray', alpha=0.3)
         ax.legend()
 
     # =========================================================================
@@ -347,41 +389,6 @@ class PulloutHist(Hist, bu.Model, Vis2D):
         )
     )
 
-    def xsubplots(self, fig):
-        (ax_geo, ax_Pw), (ax_sf, ax_G_t) = fig.subplots(2, 2)
-        ax_sig = ax_sf.twinx()
-        ax_dG_t = ax_G_t.twinx()
-        return ax_geo, ax_Pw, ax_sig, ax_sf, ax_G_t, ax_dG_t
-
-    def xupdate_plot2(self, axes):
-        if len(self.U_t) == 0:
-            return
-        ax_geo, ax_Pw, ax_sig, ax_sf, ax_G_t, ax_dG_t = axes
-        self.plot_geo(ax_geo)
-        self.plot_Pw(ax_Pw)
-        self.plot_sig_p(ax_sig)
-        self.plot_sf(ax_sf)
-        self.plot_G_t(ax_G_t)
-        self.plot_dG_t(ax_dG_t)
-
-    def xupdate_plot(self, axes):
-        if len(self.U_t) == 0:
-            return
-        ax_geo, ax_Pw, ax_sig, ax_sf, ax_G_t, ax_dG_t = axes
-        self.plot_geo(ax_geo)
-        self.plot_Pw(ax_Pw)
-        #        self.plot_sig_p(ax_sig)
-        self.plot_s(ax_sig)
-        self.plot_sf(ax_sf)
-        # self.plot_G_t(ax_G_t)
-        # self.plot_dG_t(ax_dG_t)
-        self.tstep_source.material_model_.bs_law.replot()
-        self.tstep_source.material_model_.bs_law.mpl_plot(ax_G_t)
-        ax_G_t.set_xlabel(r'$s$ [mm]')
-        ax_G_t.set_ylabel(r'$\tau$ [MPa]')
-
-
-#        self.tstep_source.mats_eval.plot(ax_G_t)
 class PulloutHist2(PulloutHist):
 
     def plot_Pw(self, ax, color='blue'):
@@ -598,6 +605,7 @@ class Geometry(BMCSLeafNode, RInputRecord):
 
 class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
     name = 'Pullout'
+    node_name = 'Pull out simulation'
 
     hist_type = PulloutHist2
 
@@ -610,8 +618,6 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
     @tr.cached_property
     def _get_time_line(self):
         return self.sim.tline
-
-    node_name = 'Pull out simulation'
 
     tree = ['time_line', 'cross_section', 'geometry', 'material_model', 'loading_scenario', 'history']
 
@@ -724,11 +730,10 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
                       ALG=True)
 
     material_model = bu.EitherType(
-        options=[('multilinear', MATSBondSlipMultiLinear),
-                 ('trilinear', MATSBondSlipTriLinear),
-                 # ('damage', MATSBondSlipD),
-                 ('elasto-plasticity', MATSBondSlipEP),
-                 # ('damage-plasticity', MATSBondSlipDP),
+        options=[('multilinear', MATS1D5BondSlipMultiLinear),
+                 ('trilinear', MATS1D5BondSlipTriLinear),
+                 ('damage', MATS1D5BondSlipD),
+                 ('elasto-plasticity', MATS1D5BondSlipEP),
                  # ('cumulative fatigue', MATSBondSlipFatigue)
                  ],
         MAT=True
@@ -918,45 +923,15 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
         ax.set_xlabel('slip')
 
     def subplots(self, fig):
-        ax_geo, ax_Pw = fig.subplots(1, 2)
-        return ax_geo, ax_Pw
+        (ax_geo, ax_Pw), (ax_energy, ax_dG_t) = fig.subplots(2, 2)
+        return ax_geo, ax_Pw, ax_energy, ax_dG_t
 
     def update_plot(self, axes):
         if len(self.history.U_t) == 0:
             return
-        ax_geo, ax_Pw = axes
+        ax_geo, ax_Pw, ax_energy, ax_dG_t = axes
         self.history.t_slider = self.t
         self.history.plot_geo(ax_geo)
         self.history.plot_Pw(ax_Pw)
-
-    def get_window(self):
-        Pw = self.history.plt('plot_Pw', label='pullout curve')
-        geo = self.plt('plot_geo', label='geometry')
-        u_p = self.plt('plot_u_p', label='displacement along the bond')
-        eps_p = self.plt('plot_eps_p', label='strain along the bond')
-        sig_p = self.plt('plot_sig_p', label='stress along the bond')
-        s = self.plt('plot_s', label='slip along the bond')
-        sf = self.plt('plot_sf', label='shear flow along the bond')
-        energy = self.history.plt('plot_G_t', label='energy')
-        dissipation = self.history.plt('plot_dG_t', label='energy release')
-        pp0 = PlotPerspective(
-            name='geo',
-            viz2d_list=[geo],
-            positions=[111],
-        )
-        pp1 = PlotPerspective(
-            name='history',
-            viz2d_list=[Pw, geo, energy, dissipation],
-            positions=[221, 222, 223, 224],
-        )
-        pp2 = PlotPerspective(
-            name='fields',
-            viz2d_list=[s, u_p, eps_p, sig_p],
-            twinx=[(s, sf, False)],
-            positions=[221, 222, 223, 224],
-        )
-        win = BMCSWindow(model=self)
-        win.viz_sheet.pp_list = [pp0, pp1, pp2]
-        win.viz_sheet.selected_pp = pp0
-        win.viz_sheet.monitor_chunk_size = 10
-        return win
+        self.history.plot_G_t(ax_energy)
+        self.history.plot_dG_t(ax_dG_t)

@@ -201,6 +201,12 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     @tr.cached_property
     def _get_eps_bot_t(self):
+        # test the version with a loop over the array with eps_bot_t values
+        # and gather the solutions into an array
+        # x = [ root(lambda eps_bot_i: self.get_N_t(kappa_i, eps_bot_i),
+        #            0.0000001, tol=1e-6).x for kappa_i in self.kappa_t
+        # ]
+        # return np.array(x)
         res = root(lambda eps_bot_t: self.get_N_t(self.kappa_t, eps_bot_t),
                    0.0000001 + np.zeros_like(self.kappa_t), tol=1e-6)
         if not res.success:
