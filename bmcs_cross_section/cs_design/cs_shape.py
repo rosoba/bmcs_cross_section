@@ -2,11 +2,10 @@ import traits.api as tr
 from bmcs_utils.api import InteractiveModel
 import numpy as np
 import sympy as sp
-from bmcs_utils.api import View, Item, Float
+from bmcs_utils.api import View, Item, Float, Array, Str, TextAreaEditor, Button, ButtonEditor
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Polygon
 from matplotlib.patches import Circle as MPL_Circle
-
 
 class ICrossSectionShape(tr.Interface):
     """This interface lists the functions need to be implemented by cross section classes."""
@@ -88,7 +87,6 @@ class Circle(CrossSectionShapeBase):
 
         # TODO->Saeed: complete this
 
-
     def update_plot(self, ax):
         # TODO->Saeed: fix this
 
@@ -106,9 +104,9 @@ class Circle(CrossSectionShapeBase):
 @tr.provides(ICrossSectionShape)
 class TShape(CrossSectionShapeBase):
 
-    B_f = Float(200, GEO=True)
-    B_w = Float(50, GEO=True)
-    H_w = Float(150, GEO=True)
+    B_f = Float(400, GEO=True)
+    B_w = Float(100, GEO=True)
+    H_w = Float(300, GEO=True)
 
     ipw_view = View(
         *CrossSectionShapeBase.ipw_view.content,
@@ -144,31 +142,30 @@ class TShape(CrossSectionShapeBase):
         return sp.lambdify(z_, b_p, 'numpy')
 
     def update_plot(self, ax):
-        # TODO [Saeed]: fix this
         # Start drawing from bottom center of the cross section
-        cs_points = np.array([  [self.B_w/2, 0],
-                                [self.B_w/2, self.H_w],
-                                [self.B_f/2, self.H_w],
-                                [self.B_f/2, self.H],
-                                [-self.B_f/2, self.H],
-                                [-self.B_f/2, self.H_w],
-                                [-self.B_w/2, self.H_w],
-                                [-self.B_w/2, 0]])
+        cs_points = np.array([[self.B_w / 2, 0],
+                              [self.B_w / 2, self.H_w],
+                              [self.B_f / 2, self.H_w],
+                              [self.B_f / 2, self.H],
+                              [-self.B_f / 2, self.H],
+                              [-self.B_f / 2, self.H_w],
+                              [-self.B_w / 2, self.H_w],
+                              [-self.B_w / 2, 0]])
 
         cs = Polygon(cs_points)
 
-        patch_collection = PatchCollection([cs], facecolor=(.5,.5,.5,0.2), edgecolors=(0,0,0,1))
+        patch_collection = PatchCollection([cs], facecolor=(.5, .5, .5, 0.2), edgecolors=(0, 0, 0, 1))
 
         ax.add_collection(patch_collection)
-        ax.scatter(0, TShape.get_cs_i(self)[0], color ='white', s = self.B_w, marker ="+")
+        ax.scatter(0, TShape.get_cs_i(self)[0], color='white', s=self.B_w, marker="+")
 
         ax.autoscale_view()
         ax.set_aspect('equal')
 
         ax.annotate('Area = {} $mm^2$'.format(int(TShape.get_cs_area(self)), 0),
-                    xy=(-self.H/2 * 0.8, (self.H / 2 + self.H_w / 2)), color='blue')
+                    xy=(-self.H / 2 * 0.8, (self.H / 2 + self.H_w / 2)), color='blue')
         ax.annotate('I = {} $mm^4$'.format(int(TShape.get_cs_i(self)[1]), 0),
-                    xy=(-self.H/2 * 0.8, (self.H / 2 + self.H_w / 2) * 0.9), color='blue')
+                    xy=(-self.H / 2 * 0.8, (self.H / 2 + self.H_w / 2) * 0.9), color='blue')
         ax.annotate('$Y_c$',
                     xy=(0, TShape.get_cs_i(self)[0] * 0.85), color='purple')
 
@@ -182,31 +179,128 @@ class TShape(CrossSectionShapeBase):
         #             arrowprops={'arrowstyle': '<->'}, va='center', ha ='center')
 
 
-# TODO->Saeed: maybe complete this
 @tr.provides(ICrossSectionShape)
-class CustomShape(CrossSectionShapeBase):
+class IShape(CrossSectionShapeBase):
+
+    H = Float(900, GEO=True)
+    B_w = Float(50, GEO=True)
+    B_f_bot = Float(200, GEO=True)
+    B_f_top = Float(200, GEO=True)
+    H_f_bot = Float(145, GEO=True)
+    H_f_top = Float(145, GEO=True)
+
+    ipw_view = View(
+        *CrossSectionShapeBase.ipw_view.content,
+        Item('B_w', minmax=(10, 3000), latex=r'B_w \mathrm{[mm]}'),
+        Item('B_f_bot', minmax=(10, 3000), latex=r'B_{f_{bot}} \mathrm{[mm]}'),
+        Item('B_f_top', minmax=(10, 3000), latex=r'B_{f_{top}} \mathrm{[mm]}'),
+        Item('H_f_bot', minmax=(10, 3000), latex=r'H_{f_{bot}} \mathrm{[mm]}'),
+        Item('H_f_top', minmax=(10, 3000), latex=r'H_{f_{top}} \mathrm{[mm]}'),
+    )
 
     def get_cs_area(self):
+        return self.B_f_bot * self.H_f_bot + self.B_f_top * self.H_f_top + self.B_w * (
+                    self.H - self.H_f_top - self.H_f_bot)
+
+    def get_cs_i(self):
         pass
+
+    get_b = tr.Property(tr.Callable, depends_on='+input')
+
+    @tr.cached_property
+    def _get_get_b(self):
+        z_ = sp.Symbol('z')
+        b_p = sp.Piecewise(
+            (self.B_f_bot, z_ < self.H_f_bot),
+            (self.B_w, z_ < self.H - self.H_f_top),
+            (self.B_f_top, True)
+        )
+        return sp.lambdify(z_, b_p, 'numpy')
+
+    def update_plot(self, ax):
+        # Start drawing from bottom center of the cross section
+        cs_points = np.array([[self.B_f_bot/2, 0],
+                              [self.B_f_bot / 2, self.H_f_bot],
+                              [self.B_w / 2, self.H_f_bot],
+                              [self.B_w / 2, self.H - self.H_f_top],
+                              [self.B_f_top / 2, self.H - self.H_f_top],
+                              [self.B_f_top / 2, self.H],
+                              [-self.B_f_top / 2, self.H],
+                              [-self.B_f_top / 2, self.H - self.H_f_top],
+                              [-self.B_w / 2, self.H - self.H_f_top],
+                              [-self.B_w / 2, self.H_f_bot],
+                              [-self.B_f_bot / 2, self.H_f_bot],
+                              [-self.B_f_bot / 2, 0]
+                              ])
+
+        cs = Polygon(cs_points)
+
+        patch_collection = PatchCollection([cs], facecolor=(.5, .5, .5, 0.2), edgecolors=(0, 0, 0, 1))
+
+        ax.add_collection(patch_collection)
+        # ax.scatter(0, TShape.get_cs_i(self)[0], color='white', s=self.B_w, marker="+")
+
+        ax.autoscale_view()
+        ax.set_aspect('equal')
+
+        ax.annotate('Area = {} $mm^2$'.format(int(IShape.get_cs_area(self)), 0),
+                    xy=(0, self.H / 2), color='blue')
+
+
+@tr.provides(ICrossSectionShape)
+class CustomShape(CrossSectionShapeBase):
+    cs_points_str = Str(
+        '100, 0\n100, 140\n25, 150\n25, 750\n100, 760\n100, 900\n-100, 900\n-100, 760\n-25, 750\n-25, 150\n-100, 140\n-100, 0')
+    apply_points_btn = Button()
+
+    @tr.observe("apply_points_btn")
+    def apply_points_btn_clicked(self, event):
+        print('This should update the plot with the new points, but maybe it\'s not needed')
+
+    ipw_view = View(
+        Item('cs_points_str', latex=r'\mathrm{Points}', editor=TextAreaEditor()),
+        Item('apply_points_btn', editor=ButtonEditor(label='Apply points', icon='refresh')),
+    )
+
+    cs_points = tr.Property()
+
+    def _get_cs_points(self):
+        return self._parse_2d_points_str_into_array(self.cs_points_str)
+
+    @staticmethod
+    def _parse_2d_points_str_into_array(points_str):
+        """ This will parse str of points written like this '0, 0\n 1, 1' to ([0, 0], [1, 1]) """
+        points_str = points_str.replace('\n', ', ').replace('\r', ', ')
+        points_array = np.fromstring(points_str, dtype=int, sep=',')
+        if points_array.size % 2 != 0:
+            points_array = np.append(points_array, 0)
+        points_array = points_array.reshape((int(points_array.size / 2), 2))
+        return points_array.reshape((int(points_array.size / 2), 2))
+
+    def get_cs_area(self):
+        points_xy = self.cs_points
+        x = points_xy[:, 0]
+        y = points_xy[:, 1]
+        # See https://stackoverflow.com/a/30408825 for following Implementation of Shoelace formula
+        return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
     def get_cs_i(self):
         pass
 
     def get_b(self, z_positions_array):
+        # TODO get b for polygon given its points coordinates
         pass
 
     def update_plot(self, ax):
-        # TODO->Saeed: fix this to use it for the CustomShape
-        # self.update_plot(ax)
-        z = np.linspace(0, self.H, 100)
-        b = self.get_b(z)
-        ax.axis([0, np.max(b), 0, self.H])
-        ax.axis('equal')
-        ax.fill(b, z, color='gray')
-        ax.plot(b, z, color='black')
+        cs = Polygon(self.cs_points)
+        patch_collection = PatchCollection([cs], facecolor=(.5, .5, .5, 0.2), edgecolors=(0, 0, 0, 1))
+        ax.add_collection(patch_collection)
+        # ax.scatter(0, CustomShape.get_cs_i(self)[0], color='white', s=self.B_w, marker="+")
+
         ax.autoscale_view()
         ax.set_aspect('equal')
-        ax.annotate('Area = {} $mm^2$'.format(int(CustomShape.get_cs_area(self)), 0),
-                    xy=(-self.H/2 * 0.8, self.H/2), color='blue')
-        ax.annotate('I = {} $mm^4$'.format(int(CustomShape.get_cs_i(self)), 0),
-                    xy=(-self.H/2 * 0.8, self.H/2 * 0.8), color='blue')
+
+        # ax.annotate('Area = {} $mm^2$'.format(int(CustomShape.get_cs_area(self)), 0),
+        #             xy=(-self.H/2 * 0.8, self.H/2), color='blue')
+        # ax.annotate('I = {} $mm^4$'.format(int(CustomShape.get_cs_i(self)), 0),
+        #             xy=(-self.H/2 * 0.8, self.H/2 * 0.8), color='blue')

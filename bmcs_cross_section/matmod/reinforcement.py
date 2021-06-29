@@ -20,11 +20,22 @@ class SteelReinfMatModSymbExpr(bu.SymbExpr):
 
     eps_sy, eps_ud, E_s = sp.symbols(r'varepsilon_sy, varepsilon_ud, E_s', real=True, nonnegative=True)
 
+    # sig = sp.Piecewise(
+    #     (0, eps < -eps_ud),
+    #     (-E_s * eps_sy, eps < -eps_sy),
+    #     (E_s * eps, eps < eps_sy),
+    #     (E_s * eps_sy, eps < eps_ud),
+    #     (0, True),
+    # )
+
+    ext = 0.7 # extension percentage after failure to avoid numerical solution instability
     sig = sp.Piecewise(
-        (0, eps < -eps_ud),
+        (0, eps < -eps_ud - ext * eps_sy),
+        (-(E_s / ext) * (eps_ud + ext * eps_sy + eps), eps < -eps_ud),
         (-E_s * eps_sy, eps < -eps_sy),
         (E_s * eps, eps < eps_sy),
         (E_s * eps_sy, eps < eps_ud),
+        ((E_s / ext) * (eps_ud + ext * eps_sy - eps), eps < eps_ud + ext * eps_sy),
         (0, True),
     )
 
@@ -58,7 +69,7 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
     )
 
     def get_eps_plot_range(self):
-        return np.linspace(- 1.1*self.eps_ud, 1.1*self.eps_ud,300)
+        return np.linspace(- 1.1*self.eps_ud, 1.1*self.eps_ud, 300)
 
     def get_sig(self, eps):
         return self.factor * self.symb.get_sig(eps)

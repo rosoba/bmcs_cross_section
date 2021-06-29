@@ -8,7 +8,7 @@ dependencies:
 - matplotlib-base
 - numpy
 - scipy
-- sympy
+- sympy<=1.7.1 # the is required, with the new version sympy 1.8, the load-deflection curve is wrong (TODO, investigate)
 - ipywidgets
 - ipympl
 - pip

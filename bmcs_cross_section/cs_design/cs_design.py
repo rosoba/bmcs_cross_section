@@ -1,12 +1,11 @@
 from .cs_layout import CrossSectionLayout
-from .cs_shape import Rectangle, Circle, TShape, CustomShape, ICrossSectionShape
+from .cs_shape import Rectangle, Circle, TShape, CustomShape, ICrossSectionShape, IShape
 from bmcs_utils.api import Model, Item, View
 import traits.api as tr
 from bmcs_utils.trait_types import \
     Float, Bool, Int, FloatRangeEditor, EitherType, Instance
 from bmcs_cross_section.matmod import \
     PWLConcreteMatMod, EC2ConcreteMatMod
-
 
 
 class CrossSectionDesign(Model):
@@ -37,6 +36,7 @@ class CrossSectionDesign(Model):
     cross_section_shape = EitherType(
                           options=[('rectangle', Rectangle),
                                     ('circle', Circle),
+                                   ('I-shape', IShape),
                                     ('T-shape', TShape),
                                    ('custom', CustomShape)],
                           CS=True, tree=True )
