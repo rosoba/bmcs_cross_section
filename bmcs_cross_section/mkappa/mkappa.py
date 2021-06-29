@@ -472,7 +472,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     def plot_strain_profile(self, ax):
         ax.set_ylabel('z [mm]')
-        ax.set_xlabel('$\eps$ [-]')
+        ax.set_xlabel(r'$\varepsilon$ [-]')
         ax.plot(self.eps_tm[self.idx, :], self.z_m)
         ax.axvline(0, linewidth=0.8, color='k')
         ax.fill_betweenx(self.z_m, self.eps_tm[self.idx, :], 0, alpha=0.1)
