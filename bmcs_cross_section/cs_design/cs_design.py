@@ -27,7 +27,11 @@ class CrossSectionDesign(Model):
     def _get_csl(self):
         return self.cross_section_layout
 
-    H = tr.DelegatesTo('cross_section_shape_')
+    H = tr.Property(Float)
+    def _get_H(self):
+        return self.cross_section_shape_.H
+    def _set_H(self,value):
+        self.cross_section_shape_.H = value
 
     cross_section_shape = EitherType(
                           options=[('rectangle', Rectangle),

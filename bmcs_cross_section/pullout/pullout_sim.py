@@ -14,15 +14,12 @@ from ibvpy.api import \
 from ibvpy.bcond import BCDof
 from ibvpy.fets.fets1D5 import FETS1D52ULRH
 from ibvpy.tfunction import MonotonicLoadingScenario, CyclicLoadingScenario
-from ibvpy.tmodel.mats1D5.vmats1D5_bondslip1D import \
-    MATSBondSlipMultiLinear, MATSBondSlipDP, \
-    MATSBondSlipD, MATSBondSlipEP, MATSBondSlipFatigue
-from ibvpy.tmodel.mats1D5.vmats1D5_bondslip1D_trilinear import MATSBondSlipTriLinear
+from ibvpy.api import \
+    MATS1D5BondSlipMultiLinear, \
+    MATS1D5BondSlipD, MATS1D5BondSlipEP, MATS1D5BondSlipTriLinear
 from ibvpy.view.plot2d import Vis2D
 from ibvpy.view.reporter import RInputRecord
 from ibvpy.view.ui import BMCSLeafNode, BMCSRootNode
-from ibvpy.view.window.bmcs_window import BMCSWindow
-from ibvpy.view.window.bmcs_viz_sheet import PlotPerspective
 from scipy import interpolate as ip
 from scipy.integrate import cumtrapz
 from traits.api import \
@@ -148,6 +145,18 @@ class PulloutHist(Hist, bu.Model, Vis2D):
         #     sig_tEms = sig_tEms[0,...]
         return sig_tEms
 
+    U_bar_t = tr.Property
+    def _get_U_bar_t(self):
+        return self.get_U_bar_t()
+
+    W_t = tr.Property
+    def _get_W_t(self):
+        return self.get_W_t()
+
+    G_t = tr.Property
+    def _get_G_t(self):
+        return self.W_t - self.U_bar_t
+
     def get_U_bar_t(self):
         xmodel = self.tstep_source.fe_domain[0].xmodel
         fets = xmodel.fets
@@ -160,6 +169,33 @@ class PulloutHist(Hist, bu.Model, Vis2D):
         U_bar_t = 0.5 * np.einsum('m,Em,s,tEms,tEms->t',
                                   w_ip, J_det, A, sig_tEms, eps_tEms)
         return U_bar_t
+
+    G_omega_t = tr.Property
+    def _get_G_omega_t(self):
+        xmodel = self.tstep_source.fe_domain[0].xmodel
+        mats = self.tstep_source.material_model_
+        fets = xmodel.fets
+        A = xmodel.A
+        eps_tEms = self.get_eps_tEms(slice(0, None))
+        _, D0_rs = mats.get_corr_pred(np.array([[0,0,0]]), 0,
+                           kappa_n=np.array([0]), omega_n=np.array([0]))
+        w_ip = fets.ip_weights
+        J_det = xmodel.det_J_Em
+        Y_Em_t = 0.5 * np.einsum('m,Em,s,tEmr,rs,tEms->tEm',
+                                  w_ip, J_det, A, eps_tEms, D0_rs[0], eps_tEms)
+        omega_Em_t = np.array([state[0]['omega_n'] for state in self.state_vars])
+        #G_omega_Em_t = cumtrapz(Y_Em_t, omega_Em_t, axis=0, initial = 0)
+        #return np.sum(G_omega_Em_t, axis=(1,2))
+
+        t = self.t
+        d_omega_Em_t = (
+                (omega_Em_t[1:] - omega_Em_t[:-1]) / (t[1:] - t[:-1])[:, None, None]
+        )
+        #print(Y_Em_t.shape, d_omega_Em_t.shape)
+        dG_omega_t = np.hstack([
+            np.einsum('tEm,tEm->t', Y_Em_t[:-1], d_omega_Em_t), [0]])
+        return cumtrapz(dG_omega_t, t, initial=0)
+
 
     def get_W_t(self):
         P_t, _, w_L = self.get_Pw_t()
@@ -212,8 +248,9 @@ class PulloutHist(Hist, bu.Model, Vis2D):
 
     def plot_G_t(self, ax,
                  label_U='U(t)', label_W='W(t)',
-                 color_U='blue', color_W='red'):
+                 color_U='green', color_W='black'):
 
+        #_, _, w_t = self.get_Pw_t()
         t = self.t
         U_bar_t = self.get_U_bar_t()
         W_t = self.get_W_t()
@@ -221,17 +258,20 @@ class PulloutHist(Hist, bu.Model, Vis2D):
             return
         ax.plot(t, W_t, color=color_W, label=label_W)
         ax.plot(t, U_bar_t, color=color_U, label=label_U)
-        ax.fill_between(t, W_t, U_bar_t, facecolor='gray', alpha=0.5,
+        ax.plot(t, U_bar_t+self.G_omega_t, color='black', linestyle='dashed', label='G_t')
+        ax.fill_between(t, W_t, U_bar_t, facecolor='gray', alpha=0.3,
                         label='G(t)')
+        ax.fill_between(t, U_bar_t, 0, facecolor='green', alpha=0.3)
         ax.set_ylabel('energy [Nmm]')
-        ax.set_xlabel('time [-]')
+        ax.set_xlabel(r'$t$ [-]')
         ax.legend()
 
     def plot_dG_t(self, ax, *args, **kw):
+        #_, _, w_t = self.get_Pw_t()
         t = self.t
         dG = self.get_dG_t()
         ax.plot(t, dG, color='black', label='dG/dt')
-        ax.fill_between(t, 0, dG, facecolor='blue', alpha=0.05)
+        ax.fill_between(t, 0, dG, facecolor='gray', alpha=0.3)
         ax.legend()
 
     # =========================================================================
@@ -349,44 +389,9 @@ class PulloutHist(Hist, bu.Model, Vis2D):
         )
     )
 
-    def xsubplots(self, fig):
-        (ax_geo, ax_Pw), (ax_sf, ax_G_t) = fig.subplots(2, 2)
-        ax_sig = ax_sf.twinx()
-        ax_dG_t = ax_G_t.twinx()
-        return ax_geo, ax_Pw, ax_sig, ax_sf, ax_G_t, ax_dG_t
-
-    def xupdate_plot2(self, axes):
-        if len(self.U_t) == 0:
-            return
-        ax_geo, ax_Pw, ax_sig, ax_sf, ax_G_t, ax_dG_t = axes
-        self.plot_geo(ax_geo)
-        self.plot_Pw(ax_Pw)
-        self.plot_sig_p(ax_sig)
-        self.plot_sf(ax_sf)
-        self.plot_G_t(ax_G_t)
-        self.plot_dG_t(ax_dG_t)
-
-    def xupdate_plot(self, axes):
-        if len(self.U_t) == 0:
-            return
-        ax_geo, ax_Pw, ax_sig, ax_sf, ax_G_t, ax_dG_t = axes
-        self.plot_geo(ax_geo)
-        self.plot_Pw(ax_Pw)
-        #        self.plot_sig_p(ax_sig)
-        self.plot_s(ax_sig)
-        self.plot_sf(ax_sf)
-        # self.plot_G_t(ax_G_t)
-        # self.plot_dG_t(ax_dG_t)
-        self.tstep_source.material_model_.bs_law.replot()
-        self.tstep_source.material_model_.bs_law.mpl_plot(ax_G_t)
-        ax_G_t.set_xlabel(r'$s$ [mm]')
-        ax_G_t.set_ylabel(r'$\tau$ [MPa]')
-
-
-#        self.tstep_source.mats_eval.plot(ax_G_t)
 class PulloutHist2(PulloutHist):
 
-    def plot_Pw(self, ax):
+    def plot_Pw(self, ax, color='blue'):
         P_range, w_unloaded, w_loaded = self.get_Pw_t()
         idx = self.get_time_idx(self.t_slider)
         P = P_range[idx]
@@ -394,8 +399,8 @@ class PulloutHist2(PulloutHist):
         w_L_b = w_unloaded[idx]
         ax.plot(w,P  * 0.001,marker='o', color='magenta')
         ax.plot(w_L_b, P * 0.001,marker='o', color='magenta')
-        ax.plot(w_loaded, P_range * 0.001, color='blue', label=r'$w_\mathrm{loaded}$')
-        ax.plot(w_unloaded, P_range * 0.001, color='blue', linestyle='dashed',
+        ax.plot(w_loaded, P_range * 0.001, color=color, label=r'$w_\mathrm{loaded}$')
+        ax.plot(w_unloaded, P_range * 0.001, color=color, linestyle='dashed',
                 label=r'$w_\mathrm{unloaded}$')
         ax.set_ylabel(r'$P$ [kN]')
         ax.set_xlabel(r'$w$ [mm]')
@@ -433,20 +438,22 @@ class PulloutHist2(PulloutHist):
         #tau_range = self.symb.get_tau_w_x(x_range, w) * np.ones_like(x_range)
 
         #w_range = w_0_range
-        eps_max = np.max(eps_f_range) # self.symb.get_eps_w_f_x(x_range, w_argmax))
-        sig_max = np.max(sig_f_range) # self.symb.get_sig_w_f_x(x_range, w_argmax))
-        eps_min = np.min(eps_m_range) # self.symb.get_eps_w_m_x(x_range, w_argmax))
-        sig_min = np.min(sig_m_range) # self.symb.get_sig_w_m_x(x_range, w_argmax))
-        u_min = np.min(u_m_range) # self.symb.get_u_w_m_x(x_range, w_argmax))
+        eps_max = np.max(np.hstack([eps_f_range, eps_m_range])) # self.symb.get_eps_w_f_x(x_range, w_argmax))
+        eps_min = np.min(np.hstack([eps_m_range, eps_f_range])) # self.symb.get_eps_w_m_x(x_range, w_argmax))
+        sig_max = np.max(np.hstack([sig_f_range, sig_m_range])) # self.symb.get_sig_w_f_x(x_range, w_argmax))
+        sig_min = np.min(np.hstack([sig_m_range, sig_f_range])) # self.symb.get_sig_w_m_x(x_range, w_argmax))
+        u_max = np.max(np.hstack([u_m_range,u_f_range])) # self.symb.get_u_w_m_x(x_range, w_argmax))
+        u_min = np.min(np.hstack([u_m_range,u_f_range])) # self.symb.get_u_w_m_x(x_range, w_argmax))
 
         N_f_range = A_f * sig_f_range
         N_m_range = A_m * sig_m_range
         T_range = p * tau_range
 
-        N_max = np.max(N_f_range)
+        N_max = np.max(np.hstack([N_f_range, N_m_range]))
         u_max = w_max
-        N_min = np.min(N_m_range)
+        N_min = np.min(np.hstack([N_m_range, N_f_range]))
         T_max = np.max(T_range)
+        T_min = np.min(T_range)
         x_min = x_range[0]
         x_max = x_range[-1]
 
@@ -495,7 +502,7 @@ class PulloutHist2(PulloutHist):
             ax_tau, x_range, T_range,
             xlabel='$x$ [mm]', ylabel=r'$T$ [N/mm]',
             color='red', alpha=0.2,
-            ylim=(0, T_max), xlim=(x_min,x_max)
+            ylim=(np.min([0,T_min]), T_max), xlim=(x_min,x_max)
             )
 
     def subplots(self, fig):
@@ -596,23 +603,9 @@ class Geometry(BMCSLeafNode, RInputRecord):
     )
 
 
-class DataSheet(HasStrictTraits):
-    data = Array(np.float_)
-
-    view = View(
-        Item('data',
-             show_label=False,
-             resizable=True,
-             editor=ArrayViewEditor(titles=['x', 'y', 'z'],
-                                    format='%.4f',
-                                    )
-             ),
-        width=0.5,
-        height=0.6
-    )
-
 class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
     name = 'Pullout'
+    node_name = 'Pull out simulation'
 
     hist_type = PulloutHist2
 
@@ -621,9 +614,12 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
     def _get_history(self):
         return self.hist
 
-    node_name = 'Pull out simulation'
+    time_line = tr.Property()
+    @tr.cached_property
+    def _get_time_line(self):
+        return self.sim.tline
 
-    tree = ['cross_section', 'geometry', 'material_model', 'loading_scenario', 'history']
+    tree = ['time_line', 'cross_section', 'geometry', 'material_model', 'loading_scenario', 'history']
 
     def run(self):
         self.sim.run()
@@ -669,19 +665,6 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
                                       )
     )
 
-    tree_view = View(
-        Group(
-            Item('mats_eval_type', resizable=True, full_size=True),
-            Item('control_variable', resizable=True, full_size=True),
-            Item('w_max', resizable=True, full_size=True),
-            Item('n_e_x', resizable=True, full_size=True),
-            Item('fixed_boundary'),
-            Group(
-                Item('loading_scenario@', show_label=False),
-            )
-        )
-    )
-
     @tr.on_trait_change("state_changed")
     def report_change(self):
         self.model_structure_changed = True
@@ -692,7 +675,7 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
     loading_scenario = bu.EitherType(
         options=[('monotonic', MonotonicLoadingScenario),
                  ('cyclic', CyclicLoadingScenario)],
-        report=True,
+        report=True, TIME=True,
         desc='object defining the loading scenario'
     )
 
@@ -747,12 +730,12 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
                       ALG=True)
 
     material_model = bu.EitherType(
-        options=[('multilinear', MATSBondSlipMultiLinear),
-                 ('trilinear', MATSBondSlipTriLinear),
-                 ('damage', MATSBondSlipD),
-                 ('elasto-plasticity', MATSBondSlipEP),
-                 ('damage-plasticity', MATSBondSlipDP),
-                 ('cumulative fatigue', MATSBondSlipFatigue)],
+        options=[('multilinear', MATS1D5BondSlipMultiLinear),
+                 ('trilinear', MATS1D5BondSlipTriLinear),
+                 ('damage', MATS1D5BondSlipD),
+                 ('elasto-plasticity', MATS1D5BondSlipEP),
+                 # ('cumulative fatigue', MATSBondSlipFatigue)
+                 ],
         MAT=True
     )
     '''Material model'''
@@ -940,44 +923,15 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
         ax.set_xlabel('slip')
 
     def subplots(self, fig):
-        ax_geo, ax_Pw = fig.subplots(1, 2)
-        return ax_geo, ax_Pw
+        (ax_geo, ax_Pw), (ax_energy, ax_dG_t) = fig.subplots(2, 2)
+        return ax_geo, ax_Pw, ax_energy, ax_dG_t
 
     def update_plot(self, axes):
         if len(self.history.U_t) == 0:
             return
-        ax_geo, ax_Pw = axes
+        ax_geo, ax_Pw, ax_energy, ax_dG_t = axes
+        self.history.t_slider = self.t
         self.history.plot_geo(ax_geo)
         self.history.plot_Pw(ax_Pw)
-
-    def get_window(self):
-        Pw = self.history.plt('plot_Pw', label='pullout curve')
-        geo = self.plt('plot_geo', label='geometry')
-        u_p = self.plt('plot_u_p', label='displacement along the bond')
-        eps_p = self.plt('plot_eps_p', label='strain along the bond')
-        sig_p = self.plt('plot_sig_p', label='stress along the bond')
-        s = self.plt('plot_s', label='slip along the bond')
-        sf = self.plt('plot_sf', label='shear flow along the bond')
-        energy = self.history.plt('plot_G_t', label='energy')
-        dissipation = self.history.plt('plot_dG_t', label='energy release')
-        pp0 = PlotPerspective(
-            name='geo',
-            viz2d_list=[geo],
-            positions=[111],
-        )
-        pp1 = PlotPerspective(
-            name='history',
-            viz2d_list=[Pw, geo, energy, dissipation],
-            positions=[221, 222, 223, 224],
-        )
-        pp2 = PlotPerspective(
-            name='fields',
-            viz2d_list=[s, u_p, eps_p, sig_p],
-            twinx=[(s, sf, False)],
-            positions=[221, 222, 223, 224],
-        )
-        win = BMCSWindow(model=self)
-        win.viz_sheet.pp_list = [pp0, pp1, pp2]
-        win.viz_sheet.selected_pp = pp0
-        win.viz_sheet.monitor_chunk_size = 10
-        return win
+        self.history.plot_G_t(ax_energy)
+        self.history.plot_dG_t(ax_dG_t)

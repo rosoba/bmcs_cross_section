@@ -294,6 +294,9 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     @tr.cached_property
     def _get_M_s_t(self):
+        if len(self.z_j) == 0:
+            return np.zeros_like(self.kappa_t)
+
         eps_z_tj = self.symb.get_eps_z(
             self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis],
             self.z_j[np.newaxis, :]
@@ -466,9 +469,10 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         idx = self.idx
         ax1.plot(self.kappa_t[idx], self.M_t[idx] / self.M_scale, color='orange', marker='o')
 
-        ax2.barh(self.z_j, self.N_s_tj[idx, :]/self.A_j, height=4, color='red', align='center')
-        ax2.set_ylabel('z [mm]')
-        ax2.set_xlabel('$\sigma_r$ [MPa]')
+        if len(self.z_j):
+            ax2.barh(self.z_j, self.N_s_tj[idx, :]/self.A_j, height=4, color='red', align='center')
+            ax2.set_ylabel('z [mm]')
+            ax2.set_xlabel('$\sigma_r$ [MPa]')
 
         ax22 = ax2.twiny()
         ax22.set_xlabel('$\sigma_c$ [MPa]')

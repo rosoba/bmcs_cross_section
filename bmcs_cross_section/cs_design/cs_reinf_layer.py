@@ -10,6 +10,8 @@ class ReinfLayer(InteractiveModel):
     #  (maybe because these are lists and changing the elements doesn't notify)
     name = 'Reinf layer'
 
+    cs_layout = tr.WeakRef
+
     z = Float(50, CS=True)
     """z positions of reinforcement layers"""
 
