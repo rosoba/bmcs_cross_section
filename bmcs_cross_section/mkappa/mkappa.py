@@ -235,24 +235,9 @@ class MKappa(InteractiveModel, InjectSymbExpr):
             calculated value, however, instability still there. The best results were obtained by taking the last 
             solution as the init_guess for the next solution like in the following.. """
             # One by one solution for kappa values
-            res = []
-            init_guess = 0.00001
-            for kappa in self.kappa_t:
-                sol = root(lambda eps_bot: self.get_N_t(np.array([kappa]), eps_bot), np.array([init_guess]), tol=1e-6).x[0]
-
-                # Using get_N_t_single which get scaler values for debugging (TODO: to be deleted later)
-                # sol = root(lambda eps_bot: self.get_N_t_single(kappa, eps_bot), init_guess, tol=1e-6).x[0]
-
-                # This condition is to avoid having init_guess~0 which causes non-convergence
-                if sol > 1e-5:
-                    init_guess = sol
-                res.append(sol)
-            res = np.array(res)
-
-            # res = np.array([root(lambda eps_bot: self.get_N_t(np.array([kappa]), eps_bot), np.array([0.0000001]),
-            #                      tol=1e-6).x[0] for kappa in self.kappa_t])
-            # res = np.array([root(lambda eps_bot: self.get_N_t_single(kappa, eps_bot), 0.0000001,
-            #                      tol=1e-6).x[0] for kappa in self.kappa_t])
+            eps_bot_sol_for_pos_kappa = self._get_eps_bot_piecewise_sol(kappa_pos=True)
+            eps_bot_sol_for_neg_kappa = self._get_eps_bot_piecewise_sol(kappa_pos=False)
+            res = np.concatenate([eps_bot_sol_for_neg_kappa, eps_bot_sol_for_pos_kappa])
             return res
         else:
             # Array solution for the whole kappa_t
@@ -262,8 +247,36 @@ class MKappa(InteractiveModel, InjectSymbExpr):
                 print('No solution', res.message)
             return res.x
 
-    # POSTPROCESSING
+    def _get_eps_bot_piecewise_sol(self, kappa_pos=True):
+        if kappa_pos:
+            kappas = self.kappa_t[np.where(self.kappa_t >= 0)]
+        else:
+            kappas = self.kappa_t[np.where(self.kappa_t < 0)]
 
+        res = []
+        if kappa_pos:
+            init_guess = 0.00001
+            kappa_loop_list = kappas
+        else:
+            init_guess = -0.00001
+            kappa_loop_list = reversed(kappas)
+
+        for kappa in kappa_loop_list:
+            sol = root(lambda eps_bot: self.get_N_t(np.array([kappa]), eps_bot), np.array([init_guess]), tol=1e-6).x[0]
+            # Using get_N_t_single which get scaler values for debugging (TODO: to be deleted later)
+            # sol = root(lambda eps_bot: self.get_N_t_single(kappa, eps_bot), init_guess, tol=1e-6).x[0]
+
+            # This condition is to avoid having init_guess~0 which causes non-convergence
+            if abs(sol) < 1e-5:
+                init_guess = sol
+            res.append(sol)
+
+        if kappa_pos:
+            return res
+        else:
+            return list(reversed(res))
+
+    # POSTPROCESSING
     kappa_cr = tr.Property(depends_on=DEPSTR)
     '''Curvature at which a critical strain is attained at the eps_bot'''
 
