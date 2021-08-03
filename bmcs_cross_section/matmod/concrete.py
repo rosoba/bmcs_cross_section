@@ -30,8 +30,19 @@ class PWLConcreteMatModSymbExpr(bu.SymbExpr):
         real=True, nonpositive=True
     )
 
+    # sig = sp.Piecewise(
+    #     (0, eps < eps_cu),
+    #     (E_cc * eps_cy, eps < eps_cy),
+    #     (E_cc * eps, eps < 0),
+    #     (E_ct * eps, eps < eps_cr),
+    #     (mu * E_ct * eps_cr, eps < eps_tu),
+    #     (0, True)
+    # )
+
+    ext = 0.15  # extension percentage after failure to avoid numerical solution instability
     sig = sp.Piecewise(
-        (0, eps < eps_cu),
+        (0, eps < eps_cu + ext * eps_cy),
+        ((E_cc / ext) * (eps_cu + ext * eps_cy - eps), eps < eps_cu),
         (E_cc * eps_cy, eps < eps_cy),
         (E_cc * eps, eps < 0),
         (E_ct * eps, eps < eps_cr),
@@ -111,13 +122,13 @@ class EC2ConcreteMatModSymbExpr(bu.SymbExpr):
         real=True, nonpositive=True
     )
     # -------------- Concrete material law according to EC2 Eq. (3.14) ------------------
-    f_cm = sp.Symbol('f_cm', real=True)
+    # f_cm = sp.Symbol('f_cm', real=True)
     f_cd = sp.Symbol('f_cd', real=True)
     n = sp.Symbol('n', real=True)
 
-    k = 1.05 * E_cc * sp.Abs(eps_cy) / f_cm
-    eta = eps / eps_cy
-    sig_c = f_cm * (k * eta - eta ** 2) / (1 + eta * (k - 2))
+    # k = 1.05 * E_cc * sp.Abs(eps_cy) / f_cm
+    # eta = eps / eps_cy
+    # sig_c = f_cm * (k * eta - eta ** 2) / (1 + eta * (k - 2))
 
     # with continuous curve until sig_c = 0
     # eps_at_sig_0 = sp.solve(sig_c, self.eps)[1]
@@ -164,7 +175,7 @@ class EC2ConcreteMatModSymbExpr(bu.SymbExpr):
     )
 
     symb_model_params = ('E_ct', 'E_cc', 'eps_cr', 'eps_cy', 'eps_cu',
-                         'mu', 'eps_tu', 'f_cd', 'f_cm', 'n')
+                         'mu', 'eps_tu', 'f_cd', 'n') # , 'f_cm'
 
     symb_expressions = [
         ('sig', ('eps',)),
@@ -183,7 +194,7 @@ class EC2ConcreteMatMod(ConcreteMatMod, bu.InjectSymbExpr):
     _eps_cu = bu.Float(-0.01, MAT=True)
 
     # Enforcing negative values for eps_cu and eps_cy
-    f_cm = bu.Float(28)
+    # f_cm = bu.Float(28)
 
     f_cd = bu.Float(28 * 0.85 / 1.5)
     n = bu.Float(2)
@@ -218,7 +229,7 @@ class EC2ConcreteMatMod(ConcreteMatMod, bu.InjectSymbExpr):
         bu.Item('eps_tu', latex=r'\varepsilon_{tu}'),
         bu.Item('mu', latex=r'\mu'),
         bu.Item('f_cd', latex=r'f_\mathrm{cd}'),
-        bu.Item('f_cm', latex=r'f_\mathrm{cm}'),
+        # bu.Item('f_cm', latex=r'f_\mathrm{cm}'),
         bu.Item('n', latex=r'\mu'),
     )
 

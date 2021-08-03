@@ -90,6 +90,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         Item('high_kappa', latex=r'\text{High}~\kappa'), # , editor=FloatEditor(step=0.00001)),
         Item('n_kappa', latex='n_{\kappa}'),
         Item('plot_strain'),
+        Item('solve_for_eps_bot_pointwise'),
         Item('n_m', latex='n_m'),
         Item('kappa_slider', latex='\kappa', readonly=True),
              # editor=FloatRangeEditor(low_name='low_kappa',
@@ -162,33 +163,6 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         N_c_t = self.get_N_c_t(kappa_t, eps_bot_t)
         return N_c_t + N_s_t
 
-    # All following functions ending by "_single" are for solving eps_bot with scaler values as input and were used for
-    # debugging (TODO: delete them later when code is robust)
-    # def get_N_t_single(self, kappa, eps_bot):
-    #     N_s = np.sum(self.get_N_s_j_single(kappa, eps_bot))
-    #     N_c = self.get_N_c_t_single(kappa, eps_bot)
-    #     return N_c + N_s
-    #
-    # def get_N_s_j_single(self, kappa, eps_bot):
-    #     # get the strain at the height of the reinforcement
-    #     eps_z_j = self.symb.get_eps_z(np.full_like(self.z_j, kappa), np.full_like(self.z_j, eps_bot), self.z_j)
-    #     # Get the crack bridging force in each reinforcement layer
-    #     # given the corresponding crack-bridge law.
-    #     N_s_j = np.array([r.get_N(eps_z) for r, eps_z in zip(self.cross_section_layout.items, eps_z_j.T)], dtype=np.float_)
-    #     return N_s_j
-    #
-    # def get_N_c_t_single(self, kappa, eps_bot):
-    #     b_z_m = self.cross_section_shape_.get_b(self.z_m)
-    #     N_z_m2 = b_z_m * self.get_sig_c_z_single(np.full_like(self.z_m, kappa), np.full_like(self.z_m, eps_bot), self.z_m.T)
-    #     return np.trapz(N_z_m2, x=self.z_m)
-    #
-    # def get_sig_c_z_single(self, kappa, eps_bot, z_m):
-    #     """Get the stress profile over the height"""
-    #     eps_z = self.symb.get_eps_z(np.full_like(z_m, kappa), np.full_like(z_m, eps_bot), z_m)
-    #     sig_c_z = self.matrix_.get_sig(eps_z)
-    #     return sig_c_z
-
-
     # SOLVER: Get eps_bot to render zero force
 
     # num_of_trials = tr.Int(30)
@@ -225,7 +199,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     #         raise SolutionNotFoundError('No solution', res.message)
     #     return res.x
 
-    solve_for_eps_bot_pointwise = Bool(True)
+    solve_for_eps_bot_pointwise = Bool(True, BC=True, GEO=True)
 
     @tr.cached_property
     def _get_eps_bot_t(self):
@@ -263,8 +237,6 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
         for kappa in kappa_loop_list:
             sol = root(lambda eps_bot: self.get_N_t(np.array([kappa]), eps_bot), np.array([init_guess]), tol=1e-6).x[0]
-            # Using get_N_t_single which get scaler values for debugging (TODO: to be deleted later)
-            # sol = root(lambda eps_bot: self.get_N_t_single(kappa, eps_bot), init_guess, tol=1e-6).x[0]
 
             # This condition is to avoid having init_guess~0 which causes non-convergence
             if abs(sol) < 1e-5:
