@@ -239,7 +239,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
             sol = root(lambda eps_bot: self.get_N_t(np.array([kappa]), eps_bot), np.array([init_guess]), tol=1e-6).x[0]
 
             # This condition is to avoid having init_guess~0 which causes non-convergence
-            if abs(sol) < 1e-5:
+            if abs(sol) > 1e-5:
                 init_guess = sol
             res.append(sol)
 
