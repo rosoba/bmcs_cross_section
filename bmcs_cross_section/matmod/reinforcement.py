@@ -72,7 +72,11 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
         return np.linspace(- 1.1*self.eps_ud, 1.1*self.eps_ud, 300)
 
     def get_sig(self, eps):
-        return self.factor * self.symb.get_sig(eps)
+        temp = self.f_sy
+        self.f_sy *= self.factor
+        sig = self.symb.get_sig(eps)
+        self.f_sy = temp
+        return sig
 
 class CarbonReinfMatModSymbExpr(bu.SymbExpr):
     """Piecewise linear concrete material law
@@ -119,5 +123,10 @@ class CarbonReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
     def get_eps_plot_range(self):
         return np.linspace(- 0.1*self.eps_cr, 1.1*self.eps_cr,300)
 
-    def get_sig(self,eps):
-        return self.factor * self.symb.get_sig(eps)
+    def get_sig(self, eps):
+        # TODO: factor should be applied only to strength in case of steel/carbon according to EC2
+        temp = self.f_t
+        self.f_t *= self.factor
+        sig = self.symb.get_sig(eps)
+        self.f_t = temp
+        return sig
