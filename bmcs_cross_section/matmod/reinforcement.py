@@ -101,7 +101,7 @@ class CarbonReinfMatModSymbExpr(bu.SymbExpr):
 
 class CarbonReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
 
-    name = 'Steel'
+    name = 'Carbon'
 
     symb_class = CarbonReinfMatModSymbExpr
 

@@ -1,7 +1,7 @@
 import numpy as np
 import traits.api as tr
 from bmcs_utils.api import \
-    InteractiveModel, Item, View, Float, Int, FloatEditor, EitherType
+    InteractiveModel, Item, View, Float, Int, FloatEditor, EitherType, EitherTypeEditor
 from bmcs_cross_section.matmod import ReinfMatMod, SteelReinfMatMod, CarbonReinfMatMod
 
 
@@ -22,7 +22,7 @@ class ReinfLayer(InteractiveModel):
                                  ('carbon', CarbonReinfMatMod)])
 
     ipw_view = View(
-        Item('matmod', latex=r'\mathrm{behavior}'),
+        Item('matmod', latex=r'\mathrm{behavior}', editor=EitherTypeEditor(show_properties=False)),
         Item('z', latex='z \mathrm{[mm]}'),
         Item('A', latex='A \mathrm{[mm^2]}'),
     )

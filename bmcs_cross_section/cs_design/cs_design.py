@@ -1,11 +1,11 @@
 from .cs_layout import CrossSectionLayout
 from .cs_shape import Rectangle, Circle, TShape, CustomShape, ICrossSectionShape, IShape
-from bmcs_utils.api import Model, Item, View
+from bmcs_utils.api import Model, Item, View, EitherTypeEditor
 import traits.api as tr
 from bmcs_utils.trait_types import \
     Float, Bool, Int, FloatRangeEditor, EitherType, Instance
 from bmcs_cross_section.matmod import \
-    PWLConcreteMatMod, EC2ConcreteMatMod
+    PWLConcreteMatMod, EC2PlateauConcreteMatMod, EC2ConcreteMatMod
 
 
 class CrossSectionDesign(Model):
@@ -13,7 +13,8 @@ class CrossSectionDesign(Model):
 
     matrix = EitherType(options=[
         ('piecewise linear', PWLConcreteMatMod),
-        ('EC2 with plateau', EC2ConcreteMatMod)
+        ('EC2 with plateau', EC2PlateauConcreteMatMod),
+        ('EC2', EC2ConcreteMatMod)
         ], MAT=True)
 
     cross_section_layout = Instance(CrossSectionLayout)
@@ -42,8 +43,8 @@ class CrossSectionDesign(Model):
                           CS=True, tree=True )
 
     ipw_view = View(
-        Item('matrix', latex=r'\mathrm{concrete behavior}'),
-        Item('cross_section_shape', latex=r'\mathrm{shape}'),
+        Item('matrix', latex=r'\mathrm{concrete behavior}', editor=EitherTypeEditor(show_properties=False)),
+        Item('cross_section_shape', latex=r'\mathrm{shape}', editor=EitherTypeEditor(show_properties=False)),
         Item('cross_section_layout', latex=r'\mathrm{layout}'),
     )
 
