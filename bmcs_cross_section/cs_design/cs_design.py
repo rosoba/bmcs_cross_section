@@ -6,7 +6,7 @@ from bmcs_utils.trait_types import \
     Float, Bool, Int, FloatRangeEditor, EitherType, Instance
 from bmcs_cross_section.matmod import \
     PWLConcreteMatMod, EC2PlateauConcreteMatMod, EC2ConcreteMatMod
-
+from bmcs_cross_section.matmod.sz_advanced import ConcreteMaterialModelAdv
 
 class CrossSectionDesign(Model):
     name = 'Cross Section Design'
@@ -14,7 +14,8 @@ class CrossSectionDesign(Model):
     matrix = EitherType(options=[
         ('piecewise linear', PWLConcreteMatMod),
         ('EC2 with plateau', EC2PlateauConcreteMatMod),
-        ('EC2', EC2ConcreteMatMod)
+        ('EC2', EC2ConcreteMatMod),
+        # ('EC2 softening tension', ConcreteMaterialModelAdv),
         ], MAT=True)
 
     cross_section_layout = Instance(CrossSectionLayout)
