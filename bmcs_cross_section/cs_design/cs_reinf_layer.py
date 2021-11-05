@@ -15,6 +15,9 @@ class ReinfLayer(InteractiveModel):
     z = Float(50, CS=True)
     """z positions of reinforcement layers"""
 
+    P = Float(100, CS=True)
+    """Perimeter"""
+
     A = Float(100, CS=True)
     """Cross sectional area"""
 
@@ -45,8 +48,8 @@ class FabricLayer(ReinfLayer):
     """Reinforcement with a grid structure
     """
     name = 'Fabric layer'
-    width = Float(8, CS=True)
-    spacing = Float(1, CS=True)
+    width = Float(100, CS=True)
+    spacing = Float(14, CS=True)
     A_roving = Float(1, CS=True)
 
     A = tr.Property(Float, depends_on='+CS')
@@ -55,16 +58,22 @@ class FabricLayer(ReinfLayer):
     def _get_A(self):
         return int(self.width/self.spacing) * self.A_roving
 
+    P = tr.Property(Float, depends_on='+CS')
+    """cross section area of reinforcement layers"""
+    @tr.cached_property
+    def _get_P(self):
+        raise NotImplementedError
+
     def _matmod_default(self):
         return 'carbon'
 
     ipw_view = View(
         Item('matmod', latex=r'\mathrm{behavior}'),
         Item('z', latex='z \mathrm{[mm]}'),
-        Item('width', latex='rov_w \mathrm{[mm]}'),
-        Item('spacing', latex='ro_s \mathrm{[mm]}'),
+        Item('width', latex='\mathrm{fabric~width} \mathrm{[mm]}'),
+        Item('spacing', latex='\mathrm{rov~spacing} \mathrm{[mm]}'),
         Item('A_roving', latex='A_r \mathrm{[mm^2]}'),
-        Item('A', latex=r'A [mm^2]'),
+        Item('A', latex=r'A [mm^2]', readonly=True),
     )
 
 
@@ -79,6 +88,12 @@ class BarLayer(ReinfLayer):
     @tr.cached_property
     def _get_A(self):
         return self.count * np.pi * (self.ds / 2.) ** 2
+
+    P = tr.Property(Float, depends_on='+CS')
+    """permeter of reinforcement layers"""
+    @tr.cached_property
+    def _get_P(self):
+        return self.count * np.pi * (self.ds)
 
     def _matmod_default(self):
         return 'steel'
