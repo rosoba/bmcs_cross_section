@@ -15,6 +15,6 @@ dependencies:
 - pip:
   - -e .
   - bmcs-utils
-  - bmcs-ibvpy
+#  - bmcs-ibvpy
   - openpyxl
   - bmcs-matmod
