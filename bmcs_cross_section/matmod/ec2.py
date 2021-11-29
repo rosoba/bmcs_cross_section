@@ -39,12 +39,12 @@ class EC2:
         return 1.3 * f_ctm
 
     @staticmethod
-    def get_f_ck_from_f_cd(f_cd):
-        return f_cd * 1.5 / 0.85
+    def get_f_ck_from_f_cd(f_cd, factor=0.85 / 1.5):
+        return f_cd * 1 / factor
 
     @staticmethod
-    def get_f_cd(f_ck):
-        return f_ck * 0.85 / 1.5
+    def get_f_cd(f_ck, factor=0.85 / 1.5):
+        return f_ck * factor
 
     @staticmethod
     def get_E_cm(f_ck):

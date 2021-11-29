@@ -13,8 +13,8 @@ class CrossSectionDesign(Model):
 
     matrix = EitherType(options=[
         ('piecewise linear', PWLConcreteMatMod),
-        ('EC2 with plateau', EC2PlateauConcreteMatMod),
         ('EC2', EC2ConcreteMatMod),
+        ('EC2 with plateau', EC2PlateauConcreteMatMod),
         # ('EC2 softening tension', ConcreteMaterialModelAdv),
         ], MAT=True)
 
@@ -37,11 +37,11 @@ class CrossSectionDesign(Model):
 
     cross_section_shape = EitherType(
                           options=[('rectangle', Rectangle),
-                                    ('circle', Circle),
+                                    # ('circle', Circle),
                                    ('I-shape', IShape),
                                     ('T-shape', TShape),
                                    ('custom', CustomShape)],
-                          CS=True, tree=True )
+                          CS=True, tree=True)
 
     ipw_view = View(
         Item('matrix', latex=r'\mathrm{concrete behavior}', editor=EitherTypeEditor(show_properties=False)),
