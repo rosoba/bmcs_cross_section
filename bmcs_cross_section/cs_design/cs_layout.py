@@ -19,6 +19,13 @@ class CrossSectionLayout(ModelList):
     def _get_z_j(self):
         return np.array([r.z for r in self.items], dtype=np.float_)
 
+    p_j = tr.Property
+    '''
+    Get the perimeter
+    '''
+    def _get_p_j(self):
+        return np.array([r.p for r in self.items], dtype=np.float_)
+
     A_j = tr.Property
     def _get_A_j(self):
         return np.array([r.A for r in self.items], dtype=np.float_)
