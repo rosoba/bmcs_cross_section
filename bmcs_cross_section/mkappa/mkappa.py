@@ -1,6 +1,9 @@
 import numpy as np
 import sympy as sp
 import traits.api as tr
+from matplotlib import pyplot as plt
+from matplotlib.ticker import PercentFormatter
+
 from bmcs_cross_section.cs_design import CrossSectionDesign
 from scipy.optimize import root
 from bmcs_utils.api import \
@@ -110,7 +113,10 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     @tr.cached_property
     def _get_idx(self):
-        ks = self.kappa_slider
+        return self.get_idx_matching_kappa_value()
+
+    def get_idx_matching_kappa_value(self, kappa_value=None):
+        ks = self.kappa_slider if kappa_value is None else kappa_value
         idx = np.argmax(ks <= self.kappa_t)
         return idx
 
@@ -468,6 +474,146 @@ class MKappa(InteractiveModel, InjectSymbExpr):
 
     def get_mk(self):
         return self.M_t / self.M_scale, self.kappa_t
+
+    def get_bd(self, upper_reinforcement=False):
+        if self.cross_section_shape != 'rectangle':
+            return self.cross_section_shape_.get_cs_area()
+
+        z = self.cross_section_layout.items[0].z
+        h = self.cross_section_shape_.H
+        b = self.cross_section_shape_.B
+        if upper_reinforcement:
+            d = z
+        else:
+            d = h - z
+        return b * d
+
+    def _get_stresses_at_maxium_moment(self):
+        kappa_by_M_max = self.kappa_t[np.argmax(self.M_t)]
+        idx = self.get_idx_matching_kappa_value(kappa_by_M_max)
+        reinf_max_stress = self.N_s_tj[idx, :] / self.A_j
+        sig_tm = self.sig_tm[idx, :]
+        concr_max_stress_t = np.max(sig_tm[sig_tm > 0]) if sig_tm[sig_tm > 0].size != 0 else 0
+        concr_max_stress_c = np.min(sig_tm[sig_tm <= 0]) if sig_tm[sig_tm <= 0].size != 0 else 0
+        return reinf_max_stress, concr_max_stress_c, concr_max_stress_t
+
+    def plot_M_rho_to_M_rho_for_other_mc(self, mc, rho_list=None, ax=None, n_rho=30):
+        fig = None
+        if ax is None:
+            fig, ax = plt.subplots()
+            fig.set_size_inches(5.5, 3.4)
+        if rho_list is None:
+            rho_list = np.linspace(0.0002, 0.025, n_rho)
+        M_max = []
+        mc_M_max = []
+        for rho in rho_list:
+            self.cross_section_layout.items[0].A = rho * self.get_bd()
+            self.state_changed = True
+            M = self.M_t / self.M_scale
+            M_max.append(np.max(M))
+
+            mc.cross_section_layout.items[0].A = rho * mc.get_bd()
+            mc.state_changed = True
+            M = mc.M_t / mc.M_scale
+            mc_M_max.append(np.max(M))
+
+        ax.plot(rho_list, np.array(mc_M_max)/np.array(M_max), c='black')
+        ax.set_ylabel(r'$M_\mathrm{max2}/M_\mathrm{max1}$')
+        ax.set_xlabel(r'Reinforcement ratio $\rho$')
+        ax.set_ylim(ymin=0)
+        ax.set_xlim(xmin=0)
+        ax.grid(color='#e6e6e6', linewidth=0.7)
+
+        if fig is not None:
+            return fig
+
+    def plot_M_rho_and_stress_rho(self, rho_list=None, axes=None, savefig=False, n_rho=30):
+        if axes is None:
+            fig, (ax_m_rho, ax_stress) = plt.subplots(2, 1)
+            fig.set_size_inches(5.5, 6.8)
+        else:
+            ax_m_rho, ax_stress = axes
+
+        if rho_list is None:
+            rho_list = np.linspace(0.0002, 0.025, n_rho)
+        M_max = []
+        reinf_stress = []
+        concrete_stress_c = []
+        for rho in rho_list:
+            self.cross_section_layout.items[0].A = rho * self.get_bd()
+            self.state_changed = True
+            M = self.M_t / self.M_scale
+            M_max.append(np.max(M))
+
+            reinf_max_stress, concr_max_stress_c, _ = self._get_stresses_at_maxium_moment()
+            reinf_stress.append(reinf_max_stress)
+            concrete_stress_c.append(concr_max_stress_c)
+
+        ax_m_rho.plot(rho_list, M_max, c='black')
+        last_M_max = M_max[-1]
+        ax_m_rho.axhline(y=last_M_max, color='r')
+        ax_m_rho.annotate(r'$M_{\mathrm{max, ' + str(rho_list[-1]) + '}} = ' + str(round(last_M_max, 2)) + '$ kNm',
+                       xy=(0, 1.04 * last_M_max), color='r')
+        ax_m_rho.set_ylabel(r'Maximum moment $M_\mathrm{max}$ [kNm]')
+        ax_m_rho.set_xlabel(r'Reinforcement ratio $\rho$')
+        ax_m_rho.set_ylim(ymin=0)
+        ax_m_rho.set_xlim(xmin=0)
+        ax_m_rho.grid(color='#e6e6e6', linewidth=0.7)
+        # ax_m_rho.legend()
+
+        # Normalize stresses as an approximation to get the value (sigma_c,max/f_cm)
+        concrete_stress_c = -np.array(concrete_stress_c)
+        max_c = np.max(np.abs(concrete_stress_c))
+        concrete_stress_c = concrete_stress_c / max_c
+        reinf_stress = np.array(reinf_stress)
+        max_s = np.max(np.abs(reinf_stress))
+        reinf_stress = reinf_stress / max_s
+        print('max_c = ', max_c)
+        print('max_s = ', max_s)
+
+        c1 = 'black'
+        # ax_stress.yaxis.set_major_formatter(PercentFormatter(xmax=1))
+        ax_stress.plot(rho_list, concrete_stress_c, '--', color=c1,
+                       label='$\psi_c = \sigma_{cc, max}/f_{\mathrm{cm}}$ corresponding to $M_{max}$')
+        ax_stress.set_xlabel(r'Reinforcement ratio $\rho$')
+        ax_stress.set_ylabel('$\psi_c = \sigma_{cc, max}/f_{\mathrm{cm}}$ [-]')
+        ax_stress.set_ylim(ymin=0)
+        ax_stress.set_xlim(xmin=0)
+        ax_stress.legend()
+        ax_stress.grid(color='#e6e6e6', linewidth=0.7)
+
+        c2 = 'red'
+        ax_stress2 = ax_stress.twinx()
+        # ax_stress2.yaxis.set_major_formatter(PercentFormatter(xmax=1))
+        ax_stress2.tick_params(axis='y', labelcolor=c2)
+        ax_stress2.set_ylabel('$\psi_r = \sigma_{r, max} / f_{\mathrm{ult}}$ [-]', color=c2) # where f_ult is f_t (carbon) or f_y (steel)
+        ax_stress2.plot(rho_list, reinf_stress, '--', color=c2,
+                        label='$\psi_r = \sigma_{r, max} / f_{\mathrm{ult}}$ corresponding to $M_{max}$')
+        ax_stress2.set_ylim(ymin=0)
+        ax_stress2.set_xlim(xmin=0)
+        ax_stress2.legend()
+
+        if axes is None:
+            if savefig:
+                matmod = self.cross_section_layout.items[0].matmod
+                fig.savefig(matmod + '_M_max_rho.pdf')
+            return fig
+
+    def plot_mk_for_rho(self, rho, ax=None):
+        A_old = self.cross_section_layout.items[0].A
+        self.cross_section_layout.items[0].A = rho * self.get_bd()
+        self.state_changed = True
+
+        if ax is None:
+            fig, ax = plt.subplots()
+        self.plot_mk(ax)
+
+        # Reassign the old value
+        self.cross_section_layout.items[0].A = A_old
+        self.state_changed = True
+
+        if ax is None:
+            return fig
 
 
 class MKappaParamsStudy(ParametricStudy):
