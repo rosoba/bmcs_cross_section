@@ -497,7 +497,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         concr_max_stress_c = np.min(sig_tm[sig_tm <= 0]) if sig_tm[sig_tm <= 0].size != 0 else 0
         return reinf_max_stress, concr_max_stress_c, concr_max_stress_t
 
-    def plot_M_rho_to_M_rho_for_other_mc(self, mc, rho_list=None, ax=None, n_rho=30):
+    def plot_M_rho_to_M_rho_for_other_mc(self, mc, rho_list=None, ax=None, n_rho=30, mc_reinf_layers_rho_factors=[1]):
         fig = None
         if ax is None:
             fig, ax = plt.subplots()
@@ -507,17 +507,23 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         M_max = []
         mc_M_max = []
         for rho in rho_list:
-            self.cross_section_layout.items[0].A = rho * self.get_bd()
+            self.cross_section_layout.items[0].A =  rho * self.get_bd()
             self.state_changed = True
             M = self.M_t / self.M_scale
             M_max.append(np.max(M))
 
-            mc.cross_section_layout.items[0].A = rho * mc.get_bd()
+            for i, factor in enumerate(mc_reinf_layers_rho_factors):
+                mc.cross_section_layout.items[i].A = factor * rho * mc.get_bd()
             mc.state_changed = True
             M = mc.M_t / mc.M_scale
             mc_M_max.append(np.max(M))
 
-        ax.plot(rho_list, np.array(mc_M_max)/np.array(M_max), c='black')
+        M_max_ratio = np.array(mc_M_max) / np.array(M_max)
+        ratio_max = np.max(M_max_ratio)
+        ax.axhline(y=ratio_max, color='r')
+        ax.annotate(r'max= ' + str(ratio_max), xy=(0, 1.04 * ratio_max), color='r')
+
+        ax.plot(rho_list, M_max_ratio, c='black')
         ax.set_ylabel(r'$M_\mathrm{max2}/M_\mathrm{max1}$')
         ax.set_xlabel(r'Reinforcement ratio $\rho$')
         ax.set_ylim(ymin=0)
@@ -527,7 +533,11 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         if fig is not None:
             return fig
 
-    def plot_M_rho_and_stress_rho(self, rho_list=None, axes=None, savefig=False, n_rho=30):
+    def plot_M_rho_and_stress_rho(self, rho_list=None, axes=None, n_rho=30, reinf_layers_rho_factors=[1]):
+        """
+        :param reinf_layers_rho_factors: for two reinf layers setting this to [0.5, 0.5] will assign
+        rho value of 0.5 * rho to each reinf layer
+        """
         if axes is None:
             fig, (ax_m_rho, ax_stress) = plt.subplots(2, 1)
             fig.set_size_inches(5.5, 6.8)
@@ -539,8 +549,10 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         M_max = []
         reinf_stress = []
         concrete_stress_c = []
+
         for rho in rho_list:
-            self.cross_section_layout.items[0].A = rho * self.get_bd()
+            for i, factor in enumerate(reinf_layers_rho_factors):
+                self.cross_section_layout.items[i].A = factor * rho * self.get_bd()
             self.state_changed = True
             M = self.M_t / self.M_scale
             M_max.append(np.max(M))
@@ -554,7 +566,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         ax_m_rho.axhline(y=last_M_max, color='r')
         ax_m_rho.annotate(r'$M_{\mathrm{max, ' + str(rho_list[-1]) + '}} = ' + str(round(last_M_max, 2)) + '$ kNm',
                        xy=(0, 1.04 * last_M_max), color='r')
-        ax_m_rho.set_ylabel(r'Maximum moment $M_\mathrm{max}$ [kNm]')
+        ax_m_rho.set_ylabel(r'$M_\mathrm{u}$ [kNm]')
         ax_m_rho.set_xlabel(r'Reinforcement ratio $\rho$')
         ax_m_rho.set_ylim(ymin=0)
         ax_m_rho.set_xlim(xmin=0)
@@ -565,18 +577,15 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         concrete_stress_c = -np.array(concrete_stress_c)
         max_c = np.max(np.abs(concrete_stress_c))
         concrete_stress_c = concrete_stress_c / max_c
-        reinf_stress = np.array(reinf_stress)
-        max_s = np.max(np.abs(reinf_stress))
-        reinf_stress = reinf_stress / max_s
-        print('max_c = ', max_c)
-        print('max_s = ', max_s)
+        reinf_stress = np.array(reinf_stress).T
+        print('Conc. normalized by max_c = ', max_c)
 
         c1 = 'black'
         # ax_stress.yaxis.set_major_formatter(PercentFormatter(xmax=1))
         ax_stress.plot(rho_list, concrete_stress_c, '--', color=c1,
-                       label='$\psi_c = \sigma_{cc, max}/f_{\mathrm{cm}}$ corresponding to $M_{max}$')
+                       label='Concrete utilization ratio $\psi_c = \sigma_{cc, max}/f_{\mathrm{cm}}$')
         ax_stress.set_xlabel(r'Reinforcement ratio $\rho$')
-        ax_stress.set_ylabel('$\psi_c = \sigma_{cc, max}/f_{\mathrm{cm}}$ [-]')
+        ax_stress.set_ylabel('Concrete utilization ratio $\psi_c = \sigma_{cc, max}/f_{\mathrm{cm}}$')
         ax_stress.set_ylim(ymin=0)
         ax_stress.set_xlim(xmin=0)
         ax_stress.legend()
@@ -586,20 +595,23 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         ax_stress2 = ax_stress.twinx()
         # ax_stress2.yaxis.set_major_formatter(PercentFormatter(xmax=1))
         ax_stress2.tick_params(axis='y', labelcolor=c2)
-        ax_stress2.set_ylabel('$\psi_r = \sigma_{r, max} / f_{\mathrm{ult}}$ [-]', color=c2) # where f_ult is f_t (carbon) or f_y (steel)
-        ax_stress2.plot(rho_list, reinf_stress, '--', color=c2,
-                        label='$\psi_r = \sigma_{r, max} / f_{\mathrm{ult}}$ corresponding to $M_{max}$')
+        ax_stress2.set_ylabel('Reinf. utilization ratio $\psi_r = \sigma_{r, max} / f_{\mathrm{ult}}$', color=c2) # where f_ult is f_t (carbon) or f_y (steel)
+        for i, reinf in enumerate(reinf_stress):
+            f_ult = self.cross_section_layout.items[i].matmod_.get_f_ult()
+            reinf = reinf / f_ult
+            print('Reinf. normalized by f_ult = ', f_ult)
+            color = c2 if i == 0 else np.random.rand(3, )
+            ax_stress2.plot(rho_list, reinf, '--', color=color,
+                            label='Reinf. utilization ratio $\psi_r$' + str(i + 1) + '$~= \sigma_{r, max} / f_{\mathrm{ult}}$')
         ax_stress2.set_ylim(ymin=0)
         ax_stress2.set_xlim(xmin=0)
         ax_stress2.legend()
 
         if axes is None:
-            if savefig:
-                matmod = self.cross_section_layout.items[0].matmod
-                fig.savefig(matmod + '_M_max_rho.pdf')
             return fig
 
     def plot_mk_for_rho(self, rho, ax=None):
+        """ TODO: This works for one reinf layer """
         A_old = self.cross_section_layout.items[0].A
         self.cross_section_layout.items[0].A = rho * self.get_bd()
         self.state_changed = True
