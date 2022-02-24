@@ -41,7 +41,7 @@ class CrossSectionLayout(ModelList):
     def subplots(self, fig):
         return fig.subplots(1, 1)
 
-    def update_plot(self, ax):
+    def plot_csl(self, ax):
         self.cs_design.cross_section_shape_.update_plot(ax)
 
         H = int(self.cs_design.cross_section_shape_.H)
@@ -63,3 +63,5 @@ class CrossSectionLayout(ModelList):
         #     xy=(-H / 2 * 0.8, (H / 2 + H / 2) * 0.8), color='blue'
         # )
 
+    def update_plot(self, ax):
+        self.plot_csl(ax)
