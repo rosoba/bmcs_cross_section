@@ -13,6 +13,9 @@ class ReinfMatMod(MatMod):
     the scatter of strength and stiffness parameters.
     '''
 
+    def get_f_ult(self):
+        raise NotImplementedError
+
 class SteelReinfMatModSymbExpr(bu.SymbExpr):
     """Piecewise linear concrete material law
     """
@@ -78,6 +81,9 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
         self.f_sy = temp
         return sig
 
+    def get_f_ult(self):
+        return self.f_sy
+
 class CarbonReinfMatModSymbExpr(bu.SymbExpr):
     """Piecewise linear concrete material law
     """
@@ -130,3 +136,6 @@ class CarbonReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
         sig = self.symb.get_sig(eps)
         self.f_t = temp
         return sig
+
+    def get_f_ult(self):
+        return self.f_t

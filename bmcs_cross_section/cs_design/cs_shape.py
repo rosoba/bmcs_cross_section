@@ -6,6 +6,7 @@ from bmcs_utils.api import View, Item, Float, Array, Str, TextAreaEditor, Button
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Polygon
 from matplotlib.patches import Circle as MPL_Circle
+import shapely.geometry as sg
 
 class ICrossSectionShape(tr.Interface):
     """This interface lists the functions need to be implemented by cross section classes."""
@@ -249,6 +250,14 @@ class IShape(CrossSectionShapeBase):
 
 @tr.provides(ICrossSectionShape)
 class CustomShape(CrossSectionShapeBase):
+
+    H = tr.Property(GEO=True)
+    def _get_H(self):
+        pl = sg.Polygon(self._cs_points)
+        top = pl.bounds[3]
+        bot = pl.bounds[1]
+        return top - bot
+
     cs_points_str = Str(
         '100, 0\n100, 140\n25, 150\n25, 750\n100, 760\n100, 900\n-100, 900\n-100, 760\n-25, 750\n-25, 150\n-100, 140\n-100, 0')
     apply_points_btn = Button()
@@ -262,10 +271,25 @@ class CustomShape(CrossSectionShapeBase):
         Item('apply_points_btn', editor=ButtonEditor(label='Apply points', icon='refresh')),
     )
 
-    cs_points = tr.Property()
+    _eps_tu = None
+    eps_tu = tr.Property(desc='Ultimate matrix tensile strain', MAT=True)
+    def _set_eps_tu(self, value):
+        self._eps_tu = value
+    def _get_eps_tu(self):
+        if self._eps_tu is not None:
+            return self._eps_tu
+        else:
+            return self.eps_cr
 
+    _cs_points = None
+    cs_points = tr.Property(GEO=True)
     def _get_cs_points(self):
-        return self._parse_2d_points_str_into_array(self.cs_points_str)
+        if self._cs_points is not None:
+            return self._cs_points
+        else:
+            return self._parse_2d_points_str_into_array(self.cs_points_str)
+    def _set_cs_points(self, value):
+        self._cs_points = value
 
     @staticmethod
     def _parse_2d_points_str_into_array(points_str):
@@ -278,7 +302,7 @@ class CustomShape(CrossSectionShapeBase):
         return points_array.reshape((int(points_array.size / 2), 2))
 
     def get_cs_area(self):
-        points_xy = self.cs_points
+        points_xy = self._cs_points
         x = points_xy[:, 0]
         y = points_xy[:, 1]
         # See https://stackoverflow.com/a/30408825 for following Implementation of Shoelace formula
@@ -288,11 +312,59 @@ class CustomShape(CrossSectionShapeBase):
         pass
 
     def get_b(self, z_positions_array):
-        # TODO get b for polygon given its points coordinates
-        pass
+        b = []
+        # Make sure array is flat
+        if isinstance(z_positions_array, np.ndarray):
+            z_positions_array = z_positions_array.flatten()
+        for z in z_positions_array:
+            b.append(self._get_polygon_width_at_height(self._cs_points, z))
+        return np.array(b)
+
+    def _get_polygon_width_at_height(self, poly_points, height):
+        p = sg.Polygon(poly_points)
+        points = self._get_polygon_hor_line_intersection_points(p, height)
+        minmax_diff = points[-1] - points[0]
+        return minmax_diff
+
+    def _get_polygon_hor_line_intersection_points(self, poly, y_val):
+        """
+        Find the intersection points of a horizontal line at
+        y=`y_val` with the Polygon `poly`.
+        Example:
+        ---------
+            import shapely.geometry as sg
+            import matplotlib.pyplot as plt
+            p = sg.Polygon(np.array([(0, 0),
+                            (40, 30),
+                            (10, 0)]))
+
+            y_val = 10
+            points = _get_polygon_hor_line_intersection_points(p, y_val)
+            minmax = (points[0], points[-1])
+
+            fig, ax = plt.subplots()
+            ax.fill(*p.boundary.xy, color='y')
+            ax.axhline(y_val, color='b')
+            ax.plot(points, np.full_like(np.array(points), y_val) , 'b.')
+            ax.plot(minmax, np.full_like(np.array(minmax), y_val) , 'ro', ms=10)
+        """
+        if y_val < poly.bounds[1] or y_val > poly.bounds[3]:
+            raise ValueError('`y_val` is outside the limits of the Polygon.')
+        if isinstance(poly, sg.Polygon):
+            poly = poly.boundary
+        hor_line = sg.LineString([[poly.bounds[0], y_val],
+                                  [poly.bounds[2], y_val]])
+        # print(poly.intersection(hor_line))
+        intersec_elements = poly.intersection(hor_line)
+        if isinstance(intersec_elements, sg.LineString):
+            pts = [pt[0] for pt in intersec_elements.xy]
+        else:
+            pts = [pt.xy[0][0] for pt in intersec_elements.geoms]
+        pts.sort()
+        return pts
 
     def update_plot(self, ax):
-        cs = Polygon(self.cs_points)
+        cs = Polygon(self._cs_points)
         patch_collection = PatchCollection([cs], facecolor=(.5, .5, .5, 0.2), edgecolors=(0, 0, 0, 1))
         ax.add_collection(patch_collection)
         # ax.scatter(0, CustomShape.get_cs_i(self)[0], color='white', s=self.B_w, marker="+")
