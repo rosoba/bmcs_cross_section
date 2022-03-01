@@ -253,22 +253,22 @@ class CustomShape(CrossSectionShapeBase):
 
     H = tr.Property(GEO=True)
     def _get_H(self):
-        pl = sg.Polygon(self._cs_points)
+        pl = sg.Polygon(self.cs_points)
         top = pl.bounds[3]
         bot = pl.bounds[1]
         return top - bot
 
-    cs_points_str = Str(
-        '100, 0\n100, 140\n25, 150\n25, 750\n100, 760\n100, 900\n-100, 900\n-100, 760\n-25, 750\n-25, 150\n-100, 140\n-100, 0')
-    apply_points_btn = Button()
-
-    @tr.observe("apply_points_btn")
-    def apply_points_btn_clicked(self, event):
-        print('This should update the plot with the new points, but maybe it\'s not needed')
+    cs_points_str = Str('60, 0\n60, 40\n25, 72.5\n25, 145\n200, 220\n200, 300\n-200, 300\n' +
+                        '-200, 220\n-25, 145\n-25, 72.5\n-60, 40\n-60, 0')
+    # apply_points_btn = Button()
+    #
+    # @tr.observe("apply_points_btn")
+    # def apply_points_btn_clicked(self, event):
+    #     print('This should update the plot with the new points, but maybe it\'s not needed')
 
     ipw_view = View(
         Item('cs_points_str', latex=r'\mathrm{Points}', editor=TextAreaEditor()),
-        Item('apply_points_btn', editor=ButtonEditor(label='Apply points', icon='refresh')),
+        # Item('apply_points_btn', editor=ButtonEditor(label='Apply points', icon='refresh')),
     )
 
     _eps_tu = None
@@ -284,10 +284,10 @@ class CustomShape(CrossSectionShapeBase):
     _cs_points = None
     cs_points = tr.Property(GEO=True)
     def _get_cs_points(self):
-        if self._cs_points is not None:
-            return self._cs_points
-        else:
+        if self._cs_points is None:
             return self._parse_2d_points_str_into_array(self.cs_points_str)
+        else:
+            return self._cs_points
     def _set_cs_points(self, value):
         self._cs_points = value
 
@@ -295,14 +295,14 @@ class CustomShape(CrossSectionShapeBase):
     def _parse_2d_points_str_into_array(points_str):
         """ This will parse str of points written like this '0, 0\n 1, 1' to ([0, 0], [1, 1]) """
         points_str = points_str.replace('\n', ', ').replace('\r', ', ')
-        points_array = np.fromstring(points_str, dtype=int, sep=',')
+        points_array = np.fromstring(points_str, dtype=float, sep=',')
         if points_array.size % 2 != 0:
             points_array = np.append(points_array, 0)
         points_array = points_array.reshape((int(points_array.size / 2), 2))
         return points_array.reshape((int(points_array.size / 2), 2))
 
     def get_cs_area(self):
-        points_xy = self._cs_points
+        points_xy = self.cs_points
         x = points_xy[:, 0]
         y = points_xy[:, 1]
         # See https://stackoverflow.com/a/30408825 for following Implementation of Shoelace formula
@@ -317,7 +317,7 @@ class CustomShape(CrossSectionShapeBase):
         if isinstance(z_positions_array, np.ndarray):
             z_positions_array = z_positions_array.flatten()
         for z in z_positions_array:
-            b.append(self._get_polygon_width_at_height(self._cs_points, z))
+            b.append(self._get_polygon_width_at_height(self.cs_points, z))
         return np.array(b)
 
     def _get_polygon_width_at_height(self, poly_points, height):
@@ -364,7 +364,7 @@ class CustomShape(CrossSectionShapeBase):
         return pts
 
     def update_plot(self, ax):
-        cs = Polygon(self._cs_points)
+        cs = Polygon(self.cs_points)
         patch_collection = PatchCollection([cs], facecolor=(.5, .5, .5, 0.2), edgecolors=(0, 0, 0, 1))
         ax.add_collection(patch_collection)
         # ax.scatter(0, CustomShape.get_cs_i(self)[0], color='white', s=self.B_w, marker="+")
