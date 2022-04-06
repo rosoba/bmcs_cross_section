@@ -26,10 +26,6 @@ from traits.api import \
     Property, cached_property, \
     HasStrictTraits, Bool, List, Float, Int, Enum, \
     Array, Tuple
-from traitsui.api import \
-    View, Item, Group
-from traitsui.ui_editors.array_view_editor import ArrayViewEditor
-
 
 class PulloutHist(Hist, bu.Model, Vis2D):
     name = 'History'
@@ -567,14 +563,6 @@ class CrossSection(BMCSLeafNode, RInputRecord):
                    auto_set=False, enter_set=True,
                    desc='perimeter of the bond interface')
 
-    view = View(
-        Item('A_m'),
-        Item('A_f'),
-        Item('P_b')
-    )
-
-    tree_view = view
-
     ipw_view = bu.View(
         bu.Item('A_m'),
         bu.Item('A_f'),
@@ -591,12 +579,6 @@ class Geometry(BMCSLeafNode, RInputRecord):
                    symbol='L',
                    auto_set=False, enter_set=True,
                    desc='embedded length')
-
-    view = View(
-        Item('L_x'),
-    )
-
-    tree_view = view
 
     ipw_view = bu.View(
         bu.Item('L_x'),
