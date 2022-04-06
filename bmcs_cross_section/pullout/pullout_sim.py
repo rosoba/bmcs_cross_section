@@ -13,7 +13,7 @@ from ibvpy.api import \
     TStepBC, Hist, XDomainFEInterface1D
 from ibvpy.bcond import BCDof
 from ibvpy.fets.fets1D5 import FETS1D52ULRH
-from ibvpy.tfunction import MonotonicLoadingScenario, CyclicLoadingScenario
+from ibvpy.tfunction import TFSelector
 from ibvpy.api import \
     MATS1D5BondSlipMultiLinear, \
     MATS1D5BondSlipD, MATS1D5BondSlipEP, MATS1D5BondSlipTriLinear
@@ -656,7 +656,7 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
         bu.Item('n_e_x'),
         bu.Item('fixed_boundary'),
         bu.Item('material_model'),
-        bu.Item('loading_scenario'),
+#        bu.Item('loading_scenario'),
         time_editor=bu.ProgressEditor(run_method='run',
                                       reset_method='reset',
                                       interrupt_var='interrupt',
@@ -672,10 +672,14 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
     # =========================================================================
     # Test setup parameters
     # =========================================================================
-    loading_scenario = bu.EitherType(
-        options=[('monotonic', MonotonicLoadingScenario),
-                 ('cyclic', CyclicLoadingScenario)],
-        report=True, TIME=True,
+    # loading_scenario = bu.EitherType(
+    #     options=[('monotonic', MonotonicLoadingScenario),
+    #              ('cyclic', CyclicLoadingScenario)],
+    #     report=True, TIME=True,
+    #     desc='object defining the loading scenario'
+    # )
+
+    loading_scenario = bu.Instance(TFSelector, (), TIME=True,
         desc='object defining the loading scenario'
     )
 
@@ -861,7 +865,7 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
         return BCDof(node_name='pull-out displacement',
                      var=self.control_variable,
                      dof=self.controlled_dof, value=self.w_max,
-                     time_function=self.loading_scenario_)
+                     time_function=self.loading_scenario.profile_)
 
     bc = Property(depends_on="state_changed")
 
@@ -923,15 +927,18 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
         ax.set_xlabel('slip')
 
     def subplots(self, fig):
-        (ax_geo, ax_Pw), (ax_energy, ax_dG_t) = fig.subplots(2, 2)
-        return ax_geo, ax_Pw, ax_energy, ax_dG_t
+        ax_geo, ax_Pw = fig.subplots(1, 2)
+#        (ax_geo, ax_Pw), (ax_energy, ax_dG_t) = fig.subplots(2, 2)
+        return ax_geo, ax_Pw#, ax_energy, ax_dG_t
 
     def update_plot(self, axes):
         if len(self.history.U_t) == 0:
             return
-        ax_geo, ax_Pw, ax_energy, ax_dG_t = axes
+        ax_geo, ax_Pw = axes
         self.history.t_slider = self.t
         self.history.plot_geo(ax_geo)
         self.history.plot_Pw(ax_Pw)
-        self.history.plot_G_t(ax_energy)
-        self.history.plot_dG_t(ax_dG_t)
+        # The plotting of energy must be done selectively for the
+        # case that the appropriate model has been selected.
+#        self.history.plot_G_t(ax_energy)
+#        self.history.plot_dG_t(ax_dG_t)
