@@ -1,12 +1,12 @@
-from .cs_layout import CrossSectionLayout
+# from .cs_layout import CrossSectionLayout
+from .cs_layout_dict import CrossSectionLayout
 from .cs_shape import Rectangle, Circle, TShape, CustomShape, ICrossSectionShape, IShape
 from bmcs_utils.api import Model, Item, View, EitherTypeEditor
 import traits.api as tr
 from bmcs_utils.trait_types import \
-    Float, Bool, Int, FloatRangeEditor, EitherType, Instance
+    Float, EitherType, Instance
 from bmcs_cross_section.matmod import \
     PWLConcreteMatMod, EC2PlateauConcreteMatMod, EC2ConcreteMatMod
-from bmcs_cross_section.matmod.sz_advanced import ConcreteMaterialModelAdv
 
 class CrossSectionDesign(Model):
     name = 'Cross Section Design'
@@ -23,7 +23,7 @@ class CrossSectionDesign(Model):
     def _cross_section_layout_default(self):
         return CrossSectionLayout(cs_design=self)
 
-    tree = ['matrix','cross_section_layout','cross_section_shape']
+    tree = ['matrix_','cross_section_layout','cross_section_shape_']
 
     csl = tr.Property
     def _get_csl(self):
