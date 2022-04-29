@@ -14,6 +14,7 @@ class CrossSectionLayout(ModelDict):
 
     def add_layer(self, rl):
         self.__setitem__(rl.name, rl)
+        rl.cs_layout = self
 
     z_j = tr.Property
 

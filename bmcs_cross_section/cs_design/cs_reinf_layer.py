@@ -30,7 +30,7 @@ class ReinfLayer(InteractiveModel):
         Item('A', latex='A \mathrm{[mm^2]}'),
     )
 
-    tree = ['matmod']
+    tree = ['matmod_']
 
     def get_N(self, eps):
         return self.A * self.matmod_.get_sig(eps)
