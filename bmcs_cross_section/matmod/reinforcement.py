@@ -23,14 +23,6 @@ class SteelReinfMatModSymbExpr(bu.SymbExpr):
 
     eps_sy, eps_ud, E_s = sp.symbols(r'varepsilon_sy, varepsilon_ud, E_s', real=True, nonnegative=True)
 
-    # sig = sp.Piecewise(
-    #     (0, eps < -eps_ud),
-    #     (-E_s * eps_sy, eps < -eps_sy),
-    #     (E_s * eps, eps < eps_sy),
-    #     (E_s * eps_sy, eps < eps_ud),
-    #     (0, True),
-    # )
-
     ext = 0.7 # extension percentage after failure to avoid numerical solution instability
     sig = sp.Piecewise(
         (0, eps < -eps_ud - ext * eps_sy),
@@ -61,7 +53,7 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
     eps_sy = tr.Property(bu.Float, depends_on='+MAT')
     @tr.cached_property
     def _get_eps_sy(self):
-        return self.f_sy / self.E_s
+        return self.factor * self.f_sy / self.E_s
 
     ipw_view = bu.View(
         bu.Item('factor'),
@@ -75,10 +67,10 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
         return np.linspace(- 1.1*self.eps_ud, 1.1*self.eps_ud, 300)
 
     def get_sig(self, eps):
-        temp = self.f_sy
-        self.f_sy *= self.factor
+        # temp = self.f_sy
+        # self.f_sy *= self.factor
         sig = self.symb.get_sig(eps)
-        self.f_sy = temp
+        # self.f_sy = temp
         return sig
 
     def get_f_ult(self):
@@ -117,7 +109,7 @@ class CarbonReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
     eps_cr = tr.Property(bu.Float, depends_on='+MAT')
     @tr.cached_property
     def _get_eps_cr(self):
-        return self.f_t / self.E
+        return self.factor * self.f_t / self.E
 
     ipw_view = bu.View(
         bu.Item('factor'),
@@ -131,10 +123,10 @@ class CarbonReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
 
     def get_sig(self, eps):
         # TODO: factor should be applied only to strength in case of steel/carbon according to EC2
-        temp = self.f_t
-        self.f_t *= self.factor
+        # temp = self.f_t
+        # self.f_t *= self.factor
         sig = self.symb.get_sig(eps)
-        self.f_t = temp
+        # self.f_t = temp
         return sig
 
     def get_f_ult(self):
