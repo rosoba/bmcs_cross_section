@@ -23,7 +23,7 @@ class CrossSectionDesign(Model):
     def _cross_section_layout_default(self):
         return CrossSectionLayout(cs_design=self)
 
-    tree = ['matrix_','cross_section_layout','cross_section_shape_']
+    tree = ['matrix','cross_section_layout','cross_section_shape']
 
     csl = tr.Property
     def _get_csl(self):
