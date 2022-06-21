@@ -25,7 +25,7 @@ class CrossSectionDesign(Model):
 
     tree = ['matrix','cross_section_layout','cross_section_shape']
 
-    csl = tr.Property
+    csl = tr.Property()
     def _get_csl(self):
         return self.cross_section_layout
 
