@@ -163,6 +163,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         b_z_m = self.cross_section_shape_.get_b(z_tm)
         N_z_tm2 = b_z_m * self.get_sig_c_z(kappa_t, eps_bot_t, z_tm)
         return np.trapz(N_z_tm2, x=z_tm, axis=-1)
+        # Slightly faster option but first and last value will be slightly higher here
+        # return np.sum(N_z_tm2 * self.cross_section_shape_.H/self.n_kappa, axis=1)
 
     def get_N_t(self, kappa_t, eps_bot_t):
         N_s_t = np.sum(self.get_N_s_tj(kappa_t, eps_bot_t), axis=-1)
@@ -244,7 +246,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         for kappa in kappa_loop_list:
             sol = root(lambda eps_bot: self.get_N_t(np.array([kappa]), eps_bot), np.array([init_guess]), tol=1e-6).x[0]
 
-            # This condition is to avoid having init_guess~0 which causes non-convergence
+            # This condition is to avoid having init_guess~0 which causes no convergence
             if abs(sol) > 1e-5:
                 init_guess = sol
             res.append(sol)
@@ -295,6 +297,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         b_z_m = self.cross_section_shape_.get_b(z_tm)
         N_z_tm2 = b_z_m * self.get_sig_c_z(self.kappa_t, self.eps_bot_t, z_tm)
         return -np.trapz(N_z_tm2 * z_tm, x=z_tm, axis=-1)
+        # Slightly faster option but first and last value will be slightly higher here
+        # return -np.sum(N_z_tm2 * z_tm * self.cross_section_shape_.H/self.n_kappa, axis=1)
 
     M_t = tr.Property(depends_on=DEPSTR)
     '''Bending moment
@@ -415,7 +419,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         mpl_align_xaxis(ax2, ax3)
 
     M_scale = Float(1e+6)
-    plot_strain = Bool(False)
+    plot_strain = Bool(True)
 
     def plot(self, ax1, ax2, ax3):
         self.plot_mk_and_stress_profile(ax1, ax2)
