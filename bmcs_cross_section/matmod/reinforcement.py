@@ -80,11 +80,13 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
         return np.linspace(- 1.1*self.eps_ud, 1.1*self.eps_ud, 300)
 
     def get_sig(self, eps):
-        # TODO add f_st
-        temp = self.f_sy
+        temp_f_sy = self.f_sy
+        temp_f_st = self.f_st
         self.f_sy *= self.factor
+        self.f_st *= self.factor
         sig = self.symb.get_sig(eps)
-        self.f_sy = temp
+        self.f_sy = temp_f_sy
+        self.f_st = temp_f_st
         return sig
 
     def get_f_ult(self):
