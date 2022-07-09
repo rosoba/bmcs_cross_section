@@ -18,6 +18,9 @@ class ReinfMatMod(MatMod):
     def get_f_ult(self):
         raise NotImplementedError
 
+    def get_eps_ult(self):
+        raise NotImplementedError
+
 class SteelReinfMatModSymbExpr(bu.SymbExpr):
     """Piecewise linear concrete material law
     """
@@ -92,6 +95,9 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
     def get_f_ult(self):
         return self.f_st
 
+    def get_eps_ult(self):
+        return self.eps_ud
+
 class CarbonReinfMatModSymbExpr(bu.SymbExpr):
     """Piecewise linear concrete material law
     """
@@ -147,3 +153,6 @@ class CarbonReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
 
     def get_f_ult(self):
         return self.f_t
+
+    def get_eps_ult(self):
+        return self.eps_cr
