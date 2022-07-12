@@ -12,9 +12,9 @@ class CrossSectionDesign(Model):
     name = 'Cross Section Design'
 
     matrix = EitherType(options=[
-        ('piecewise linear', PWLConcreteMatMod),
         ('EC2', EC2ConcreteMatMod),
         ('EC2 with plateau', EC2PlateauConcreteMatMod),
+        ('piecewise linear', PWLConcreteMatMod),
         # ('EC2 softening tension', ConcreteMaterialModelAdv),
         ], MAT=True)
 

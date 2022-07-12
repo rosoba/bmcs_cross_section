@@ -163,6 +163,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         b_z_m = self.cross_section_shape_.get_b(z_tm)
         N_z_tm2 = b_z_m * self.get_sig_c_z(kappa_t, eps_bot_t, z_tm)
         return np.trapz(N_z_tm2, x=z_tm, axis=-1)
+        # Slightly faster option but first and last value will be slightly higher here
+        # return np.sum(N_z_tm2 * self.cross_section_shape_.H/self.n_kappa, axis=1)
 
     def get_N_t(self, kappa_t, eps_bot_t):
         N_s_t = np.sum(self.get_N_s_tj(kappa_t, eps_bot_t), axis=-1)
@@ -244,7 +246,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         for kappa in kappa_loop_list:
             sol = root(lambda eps_bot: self.get_N_t(np.array([kappa]), eps_bot), np.array([init_guess]), tol=1e-6).x[0]
 
-            # This condition is to avoid having init_guess~0 which causes non-convergence
+            # This condition is to avoid having init_guess~0 which causes no convergence
             if abs(sol) > 1e-5:
                 init_guess = sol
             res.append(sol)
@@ -295,6 +297,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         b_z_m = self.cross_section_shape_.get_b(z_tm)
         N_z_tm2 = b_z_m * self.get_sig_c_z(self.kappa_t, self.eps_bot_t, z_tm)
         return -np.trapz(N_z_tm2 * z_tm, x=z_tm, axis=-1)
+        # Slightly faster option but first and last value will be slightly higher here
+        # return -np.sum(N_z_tm2 * z_tm * self.cross_section_shape_.H/self.n_kappa, axis=1)
 
     M_t = tr.Property(depends_on=DEPSTR)
     '''Bending moment
@@ -415,7 +419,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         mpl_align_xaxis(ax2, ax3)
 
     M_scale = Float(1e+6)
-    plot_strain = Bool(False)
+    plot_strain = Bool(True)
 
     def plot(self, ax1, ax2, ax3):
         self.plot_mk_and_stress_profile(ax1, ax2)
@@ -496,6 +500,18 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         concr_max_stress_t = np.max(sig_tm[sig_tm > 0]) if sig_tm[sig_tm > 0].size != 0 else 0
         concr_max_stress_c = np.min(sig_tm[sig_tm <= 0]) if sig_tm[sig_tm <= 0].size != 0 else 0
         return reinf_max_stress, concr_max_stress_c, concr_max_stress_t
+
+    def _get_strains_at_maxium_moment(self):
+        kappa_by_M_max = self.kappa_t[np.argmax(self.M_t)]
+        idx = self.get_idx_matching_kappa_value(kappa_by_M_max)
+        reinf_max_strain = []
+        # get it for all reinf layers
+        for reinf_item in self.cross_section_layout.items:
+            z = reinf_item.z
+            reinf_max_strain.append(np.interp(z, self.z_m, self.eps_tm[idx, :]))
+        concr_max_strain_t = np.max(self.eps_tm[idx, :])
+        concr_max_strain_c = np.min(self.eps_tm[idx, :])
+        return np.array(reinf_max_strain), concr_max_strain_c, concr_max_strain_t
 
     def plot_M_rho_to_M_rho_for_other_mc(self, mc, rho_list=None, ax=None, n_rho=30, mc_reinf_layers_rho_factors=[1]):
         fig = None
@@ -581,21 +597,23 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         print('Conc. normalized by max_c = ', max_c)
 
         c1 = 'black'
-        # ax_stress.yaxis.set_major_formatter(PercentFormatter(xmax=1))
+        ax_stress.yaxis.set_major_formatter(PercentFormatter(xmax=1))
         ax_stress.plot(rho_list, concrete_stress_c, '--', color=c1,
                        label='Concrete utilization ratio $\psi_c = \sigma_{cc, max}/f_{\mathrm{cm}}$')
         ax_stress.set_xlabel(r'Reinforcement ratio $\rho$')
-        ax_stress.set_ylabel('Concrete utilization ratio $\psi_c = \sigma_{cc, max}/f_{\mathrm{cm}}$')
+        ax_stress.set_ylabel('Concrete utilization ratio $\psi_c$')
+        # $\psi_c = \sigma_{cc, max}/f_{\mathrm{cm}}$
         ax_stress.set_ylim(ymin=0)
         ax_stress.set_xlim(xmin=0)
-        ax_stress.legend()
+        # ax_stress.legend()
         ax_stress.grid(color='#e6e6e6', linewidth=0.7)
 
         c2 = 'red'
         ax_stress2 = ax_stress.twinx()
-        # ax_stress2.yaxis.set_major_formatter(PercentFormatter(xmax=1))
+        ax_stress2.yaxis.set_major_formatter(PercentFormatter(xmax=1))
         ax_stress2.tick_params(axis='y', labelcolor=c2)
-        ax_stress2.set_ylabel('Reinf. utilization ratio $\psi_r = \sigma_{r, max} / f_{\mathrm{ult}}$', color=c2) # where f_ult is f_t (carbon) or f_y (steel)
+        ax_stress2.set_ylabel('Reinf. utilization ratio $\psi_r$', color=c2) # where f_ult is f_t (carbon) or f_st (steel)
+        # $\psi_r = \sigma_{r, max} / f_{\mathrm{ult}}$
         for i, reinf in enumerate(reinf_stress):
             f_ult = self.cross_section_layout.items[i].matmod_.get_f_ult()
             reinf = reinf / f_ult
@@ -603,6 +621,82 @@ class MKappa(InteractiveModel, InjectSymbExpr):
             color = c2 if i == 0 else np.random.rand(3, )
             ax_stress2.plot(rho_list, reinf, '--', color=color,
                             label='Reinf. utilization ratio $\psi_r$' + str(i + 1) + '$~= \sigma_{r, max} / f_{\mathrm{ult}}$')
+        ax_stress2.set_ylim(ymin=0)
+        ax_stress2.set_xlim(xmin=0)
+        # ax_stress2.legend()
+
+        if axes is None:
+            return fig
+
+    def plot_M_rho_and_strain_rho(self, rho_list=None, axes=None, n_rho=30, reinf_layers_rho_factors=[1]):
+        """
+        :param reinf_layers_rho_factors: for two reinf layers setting this to [0.5, 0.5] will assign
+        rho value of 0.5 * rho to each reinf layer
+        """
+        if axes is None:
+            fig, (ax_m_rho, ax_stress) = plt.subplots(2, 1)
+            fig.set_size_inches(5.5, 6.8)
+        else:
+            ax_m_rho, ax_stress = axes
+
+        if rho_list is None:
+            rho_list = np.linspace(0.0002, 0.025, n_rho)
+        M_max = []
+        reinf_stress = []
+        concrete_stress_c = []
+
+        for rho in rho_list:
+            for i, factor in enumerate(reinf_layers_rho_factors):
+                self.cross_section_layout.items[i].A = factor * rho * self.get_bd()
+            self.state_changed = True
+            M = self.M_t / self.M_scale
+            M_max.append(np.max(M))
+
+            reinf_max_stress, concr_max_stress_c, _ = self._get_strains_at_maxium_moment()
+            reinf_stress.append(reinf_max_stress)
+            concrete_stress_c.append(concr_max_stress_c)
+
+        ax_m_rho.plot(rho_list, M_max, c='black')
+        last_M_max = M_max[-1]
+        ax_m_rho.axhline(y=last_M_max, color='r')
+        ax_m_rho.annotate(r'$M_{\mathrm{max, ' + str(rho_list[-1]) + '}} = ' + str(round(last_M_max, 2)) + '$ kNm',
+                       xy=(0, 1.04 * last_M_max), color='r')
+        ax_m_rho.set_ylabel(r'$M_\mathrm{u}$ [kNm]')
+        ax_m_rho.set_xlabel(r'Reinforcement ratio $\rho$')
+        ax_m_rho.set_ylim(ymin=0)
+        ax_m_rho.set_xlim(xmin=0)
+        ax_m_rho.grid(color='#e6e6e6', linewidth=0.7)
+        # ax_m_rho.legend()
+
+        # Normalize stresses as an approximation to get the value (sigma_c,max/f_cm)
+        concrete_stress_c = np.abs(concrete_stress_c / self.matrix_.eps_cu)
+        reinf_stress_lr = np.array(reinf_stress).T # where l is index for reinf layer and r for rho
+
+        c1 = 'black'
+        ax_stress.yaxis.set_major_formatter(PercentFormatter(xmax=1))
+        ax_stress.plot(rho_list, concrete_stress_c, '-', color=c1,
+                       label='Concrete utilization ratio $\psi_c = \sigma_{cc, max}/f_{\mathrm{cm}}$')
+        ax_stress.set_xlabel(r'Reinforcement ratio $\rho$')
+        ax_stress.set_ylabel('Concrete utilization ratio $\psi_c$')
+        # $\psi_c = \sigma_{cc, max}/f_{\mathrm{cm}}$
+        ax_stress.set_ylim(ymin=0)
+        ax_stress.set_xlim(xmin=0)
+        ax_stress.legend()
+        ax_stress.grid(color='#e6e6e6', linewidth=0.7)
+
+        c2 = 'red'
+        ax_stress2 = ax_stress.twinx()
+        ax_stress2.yaxis.set_major_formatter(PercentFormatter(xmax=1))
+        ax_stress2.tick_params(axis='y', labelcolor=c2)
+        ax_stress2.set_ylabel('Reinf. utilization ratio $\psi_r$', color=c2)
+        # $\psi_r = \sigma_{r, max} / f_{\mathrm{ult}}$
+        for i, reinf in enumerate(reinf_stress_lr):
+            eps_ult = self.cross_section_layout.items[i].matmod_.get_eps_ult()
+            reinf = reinf / eps_ult
+            print('Reinf. normalized by eps_ult = ', eps_ult)
+            color = c2 if i == 0 else np.random.rand(3, )
+            ax_stress2.plot(rho_list, reinf, '--', color=color,
+                            label='Reinf. util. ratio $\psi_r$' + str(i + 1) + '$~= \varepsilon_{r, max} / \varepsilon_{\mathrm{ult}}$')
         ax_stress2.set_ylim(ymin=0)
         ax_stress2.set_xlim(xmin=0)
         ax_stress2.legend()
