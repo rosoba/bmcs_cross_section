@@ -40,11 +40,11 @@ class SteelReinfMatModSymbExpr(bu.SymbExpr):
     f_sy = E_s * eps_sy
     sig = sp.Piecewise(
         (0, eps < -eps_ud - ext * eps_sy),
-        (-(E_s / ext) * (eps_ud + ext * eps_sy + eps), eps < -eps_ud),
-        (-f_sy + ((eps - eps_sy) / (eps_ud - eps_sy)) * (f_st - f_sy), eps < -eps_sy),
+        (-f_st + f_st * (-eps - eps_ud) / (ext * eps_sy), eps < -eps_ud),
+        (-f_sy - (f_st - f_sy) * ((-eps - eps_sy) / (eps_ud - eps_sy)), eps < -eps_sy),
         (E_s * eps, eps < eps_sy),
-        (f_sy + ((eps - eps_sy) / (eps_ud - eps_sy)) * (f_st - f_sy), eps < eps_ud),
-        ((E_s / ext) * (eps_ud + ext * eps_sy - eps), eps < eps_ud + ext * eps_sy),
+        (f_sy + (f_st - f_sy) * ((eps - eps_sy) / (eps_ud - eps_sy)), eps < eps_ud),
+        (f_st - f_st * (eps - eps_ud) / (ext * eps_sy), eps < eps_ud + ext * eps_sy),
         (0, True),
     )
 
