@@ -75,6 +75,7 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
         bu.Item('factor'),
         bu.Item('E_s', latex=r'E_\mathrm{s} \mathrm{[N/mm^{2}]}'),
         bu.Item('f_sy', latex=r'f_\mathrm{sy} \mathrm{[N/mm^{2}]}'),
+        bu.Item('f_st', latex=r'f_\mathrm{st} \mathrm{[N/mm^{2}]}'),
         bu.Item('eps_ud', latex=r'\varepsilon_\mathrm{ud} \mathrm{[-]}'),
         bu.Item('eps_sy', latex=r'\varepsilon_\mathrm{sy} \mathrm{[-]}', readonly=True),
     )
