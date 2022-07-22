@@ -178,7 +178,7 @@ class EC2ConcreteMatModBase(ConcreteMatMod):
     )
 
     def get_eps_plot_range(self):
-        return np.linspace(1.5 * self.eps_cu, 20 * self.eps_tu, 500)
+        return np.linspace(1.5 * self.eps_cu, 5 * self.eps_tu, 600)
 
 
 class EC2PlateauConcreteMatModSymbExpr(bu.SymbExpr):

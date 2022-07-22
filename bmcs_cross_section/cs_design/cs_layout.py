@@ -1,7 +1,7 @@
 import numpy as np
 import traits.api as tr
 from bmcs_utils.api import \
-    InteractiveModel, View, Item, EitherType, ModelList, List
+    InteractiveModel, View, Item, EitherType, ModelList, List, Button, ButtonEditor, Int
 from .cs_reinf_layer import ReinfLayer
 
 class CrossSectionLayout(ModelList):
@@ -10,6 +10,22 @@ class CrossSectionLayout(ModelList):
     items = List(ReinfLayer, [])
 
     cs_design = tr.WeakRef
+    add_reinf_layer_btn = Button()
+    remove_reinf_layer_btn = Button()
+    remove_reinf_layer_idx = Int()
+
+    @tr.observe('add_reinf_layer_btn')
+    def add_reinf_layer_btn_click(self, event=None):
+        self.add_layer(ReinfLayer())
+
+    @tr.observe('remove_reinf_layer_btn')
+    def remove_reinf_layer_btn_click(self, event=None):
+        idx = self.remove_reinf_layer_idx
+        if idx < len(self.items):
+            self.items.pop(idx)
+            print('Reinf layer ' + str(idx) + ' is removed!')
+        else:
+            print('Reinf layer ' + str(idx) + ' doesn\'t exist to remove!')
 
     def add_layer(self, rl):
         rl.cs_layout = self
@@ -36,6 +52,9 @@ class CrossSectionLayout(ModelList):
                          dtype=np.float_).T
 
     ipw_view = View(
+        Item('add_reinf_layer_btn', editor=ButtonEditor(icon='plus', label='Add reinf. layer')),
+        Item('remove_reinf_layer_btn', editor=ButtonEditor(icon='minus', label='Remove reinf. layer')),
+        Item('remove_reinf_layer_idx', latex='\mathrm{Remove~idx}'),
     )
 
     def subplots(self, fig):

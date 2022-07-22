@@ -106,7 +106,6 @@ class MKappa(InteractiveModel, InjectSymbExpr):
                                   ),
     )
 
-
     idx = tr.Property(depends_on='kappa_slider')
 
     apply_material_safety_factors = tr.Bool(False)
@@ -463,8 +462,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         ax22.fill_betweenx(self.z_m, self.sig_tm[idx, :], 0, alpha=0.1)
         mpl_align_xaxis(ax2, ax22)
 
-    def plot_mk(self, ax1):
-        ax1.plot(self.kappa_t, self.M_t / self.M_scale, label='M-K')
+    def plot_mk(self, ax1, dashed=False, color='#1f77b4'):
+        ax1.plot(self.kappa_t, self.M_t / self.M_scale, '--' if dashed else '-', c=color, label='Sim.')
         ax1.set_ylabel('Moment [kNm]')
         ax1.set_xlabel('Curvature [mm$^{-1}$]')
         ax1.legend()
