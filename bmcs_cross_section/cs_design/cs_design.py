@@ -44,8 +44,8 @@ class CrossSectionDesign(Model):
                           CS=True, tree=True)
 
     ipw_view = View(
-        Item('matrix', latex=r'\mathrm{concrete behavior}', editor=EitherTypeEditor(show_properties=False)),
-        Item('cross_section_shape', latex=r'\mathrm{shape}', editor=EitherTypeEditor(show_properties=False)),
+        Item('matrix', latex=r'\mathrm{Conc.~law}', editor=EitherTypeEditor(show_properties=False)),
+        Item('cross_section_shape', latex=r'\mathrm{CS~shape}', editor=EitherTypeEditor(show_properties=False)),
     )
 
     def subplots(self, fig):

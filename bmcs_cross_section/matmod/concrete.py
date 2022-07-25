@@ -93,8 +93,8 @@ class PWLConcreteMatMod(ConcreteMatMod, bu.InjectSymbExpr):
 
     ipw_view = bu.View(
         bu.Item('factor'),
-        bu.Item('E_ct', latex=r'E_\mathrm{ct} \mathrm{[N/mm^{2}]}'),
-        bu.Item('E_cc', latex=r'E_\mathrm{cc} \mathrm{[N/mm^{2}]}'),
+        bu.Item('E_ct', latex=r'E_\mathrm{ct} \mathrm{[MPa]}'),
+        bu.Item('E_cc', latex=r'E_\mathrm{cc} \mathrm{[MPa]}'),
         bu.Item('eps_cr', latex=r'\varepsilon_{cr}'),
         bu.Item('eps_cy', latex=r'\varepsilon_{cy}', editor=bu.FloatEditor()),
         bu.Item('eps_cu', latex=r'\varepsilon_{cu}', editor=bu.FloatEditor()),
@@ -168,12 +168,12 @@ class EC2ConcreteMatModBase(ConcreteMatMod):
             return EC2.get_f_ctm(self.f_ck)
 
     ipw_view = bu.View(
-        bu.Item('f_cm', latex=r'^*f_\mathrm{cm}', editor=bu.FloatEditor()),
+        bu.Item('f_cm', latex=r'^*f_\mathrm{cm}~\mathrm{[MPa]}', editor=bu.FloatEditor()),
         bu.Item('eps_cr', latex=r'\varepsilon_{cr}', editor=bu.FloatEditor()),
         bu.Item('eps_tu', latex=r'\varepsilon_{tu}', editor=bu.FloatEditor()),
         bu.Item('mu', latex=r'\mu'),
-        bu.Item('E_ct', latex=r'E_\mathrm{ct} \mathrm{[N/mm^{2}]}', editor=bu.FloatEditor()),
-        bu.Item('E_cc', latex=r'E_\mathrm{cc} \mathrm{[N/mm^{2}]}', editor=bu.FloatEditor()),
+        bu.Item('E_ct', latex=r'E_\mathrm{ct}~\mathrm{[MPa]}', editor=bu.FloatEditor()),
+        bu.Item('E_cc', latex=r'E_\mathrm{cc}~\mathrm{[MPa]}', editor=bu.FloatEditor()),
         bu.Item('factor'),
     )
 

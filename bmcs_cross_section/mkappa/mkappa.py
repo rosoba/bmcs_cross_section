@@ -10,6 +10,8 @@ from bmcs_utils.api import \
     InteractiveModel, Instance, Item, View, mpl_align_xaxis, ParametricStudy, \
     SymbExpr, InjectSymbExpr, Float, Int, Bool, FloatRangeEditor, FloatEditor, HistoryEditor
 
+from bmcs_cross_section.matmod.ec2 import EC2
+
 class SolutionNotFoundError(ValueError):
     pass
 
@@ -92,15 +94,16 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         Item('low_kappa', latex=r'\text{Low}~\kappa'), #, editor=FloatEditor(step=0.00001)),
         Item('high_kappa', latex=r'\text{High}~\kappa'), # , editor=FloatEditor(step=0.00001)),
         Item('n_kappa', latex='n_{\kappa}'),
-        Item('plot_strain'),
-        Item('solve_for_eps_bot_pointwise'),
         Item('n_m', latex='n_m'),
+        Item('plot_mk_inverse', latex=r'\text{Plot}~\kappa\text{-M}'),
+        # Item('solve_for_eps_bot_pointwise'),
         Item('kappa_slider', latex='\kappa', readonly=True),
              # editor=FloatRangeEditor(low_name='low_kappa',
              #                         high_name='high_kappa',
              #                         n_steps_name='n_kappa')
              # ),
-        time_editor=HistoryEditor(var='kappa_slider',
+        time_editor=HistoryEditor(label='κ slider',
+                                  var='kappa_slider',
                                   min_var='low_kappa',
                                   max_var='high_kappa',
                                   ),
@@ -418,14 +421,14 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         mpl_align_xaxis(ax2, ax3)
 
     M_scale = Float(1e+6)
-    plot_strain = Bool(True)
+    plot_mk_inverse = Bool(False)
 
     def plot(self, ax1, ax2, ax3):
         self.plot_mk_and_stress_profile(ax1, ax2)
-        if self.plot_strain:
-            self.plot_strain_profile(ax3)
-        else:
+        if self.plot_mk_inverse:
             self.plot_mk_inv(ax3)
+        else:
+            self.plot_strain_profile(ax3)
 
     @staticmethod
     def subplots(fig):
@@ -511,6 +514,43 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         concr_max_strain_t = np.max(self.eps_tm[idx, :])
         concr_max_strain_c = np.min(self.eps_tm[idx, :])
         return np.array(reinf_max_strain), concr_max_strain_c, concr_max_strain_t
+
+    def get_M_n_ACI(self):
+        """
+        According to ACI 440.1R-15
+        """
+        matmod = self.cross_section_layout.items[0].matmod
+        reinf_layers_num = len(self.cross_section_layout.items)
+        if matmod != 'carbon' or reinf_layers_num > 1:
+            print('This approach is valid only for FRP reinf. with 1 reinf. layer!')
+            return
+        f_cm = self.matrix_.f_cm
+        f_fu = self.cross_section_layout.items[0].matmod_.f_t
+        E_f = self.cross_section_layout.items[0].matmod_.E
+        A_f = self.cross_section_layout.items[0].A
+        z = self.cross_section_layout.items[0].z
+        d = self.cross_section_shape_.H - z
+        b = self.cross_section_shape_.B
+        rho = A_f / (b * d)
+
+        # Balanced reinf ratio:
+        eps_cu = EC2.get_eps_cu1(f_cm - 8)
+        beta_1 = 0.85 if f_cm <= 28 else max((0.85 - 0.05 * (f_cm - 28) / 7), 0.65)
+        rho_fb = 0.85 * beta_1 * (f_cm / f_fu) * (E_f * eps_cu / (E_f * eps_cu + f_fu))
+
+        # Get_M_n for rho < rho_fb
+        if rho < rho_fb:
+            eps_fu = f_fu / E_f
+            c_b = (eps_cu / (eps_cu + eps_fu)) * d
+            M_n = A_f * f_fu * (d - beta_1 * c_b / 2) / 1e6
+        else:
+            rho_f = A_f / (b * d)
+            f_f = np.minimum(
+                np.sqrt(((E_f * eps_cu) ** 2) / 4 + 0.85 * beta_1 * f_cm * E_f * eps_cu / rho_f) - 0.5 * E_f * eps_cu,
+                f_fu)
+            a = A_f * f_f / (0.85 * f_cm * b)
+            M_n = A_f * f_f * (d - a / 2) / 1e6
+        return M_n
 
     def plot_M_rho_to_M_rho_for_other_mc(self, mc, rho_list=None, ax=None, n_rho=30, mc_reinf_layers_rho_factors=[1]):
         fig = None
