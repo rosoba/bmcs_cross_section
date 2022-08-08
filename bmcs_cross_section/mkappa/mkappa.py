@@ -246,12 +246,14 @@ class MKappa(InteractiveModel, InjectSymbExpr):
             kappa_loop_list = reversed(kappas)
 
         for kappa in kappa_loop_list:
-            sol = root(lambda eps_bot: self.get_N_t(np.array([kappa]), eps_bot), np.array([init_guess]), tol=1e-6).x[0]
+            eps_bot_sol = root(lambda eps_bot: self.get_N_t(np.array([kappa]), eps_bot),
+                               np.array([init_guess]),
+                               tol=1e-6).x[0]
 
-            # This condition is to avoid having init_guess~0 which causes no convergence
-            if abs(sol) > 1e-5:
-                init_guess = sol
-            res.append(sol)
+            # This condition is to avoid having init_guess≈0 which causes no convergence
+            if abs(eps_bot_sol) > 1e-5:
+                init_guess = eps_bot_sol
+            res.append(eps_bot_sol)
 
         if kappa_pos:
             return res
@@ -381,12 +383,21 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         try:
             """cut off the descending tails"""
             M_t = self.M_t
+            kappa_t = self.kappa_t
             I_max = np.argmax(M_t)
-            I_min = np.argmin(M_t)
-            M_I = np.copy(M_t[I_min:I_max + 1])
-            kappa_I = np.copy(self.kappa_t[I_min:I_max + 1])
-            # find the index corresponding to zero kappa
-            idx = np.argmax(0 <= kappa_I)
+            if np.any(kappa_t < 0):
+                I_min = np.argmin(M_t)
+                if I_min < I_max:
+                    M_I = np.copy(M_t[I_min:I_max + 1])
+                    kappa_I = np.copy(kappa_t[I_min:I_max + 1])
+                    # find the index corresponding to zero kappa
+                    idx = np.argmax(0 <= kappa_I)
+                else:
+                    raise Exception("Index of M_I min is larger than M_I max!")
+            else:
+                M_I = np.copy(M_t[0:I_max + 1])
+                kappa_I = np.copy(kappa_t[0:I_max + 1])
+                idx = 0
             # and modify the values such that the
             # Values of moment are non-descending
             M_plus = M_I[idx:]
@@ -552,26 +563,21 @@ class MKappa(InteractiveModel, InjectSymbExpr):
             M_n = A_f * f_f * (d - a / 2) / 1e6
         return M_n
 
-    def plot_M_rho_to_M_rho_for_other_mc(self, mc, rho_list=None, ax=None, n_rho=30, mc_reinf_layers_rho_factors=[1]):
+    def plot_M_rho_to_M_rho_for_other_mc(self, mc, rho_list=None, ax=None, n_rho=50, mc_reinf_layers_rho_factors=[1]):
+        rho_list, M_max = self.plot_M_rho_and_util_factors(type='stress',
+                                                           rho_list=rho_list,
+                                                           n_rho=n_rho,
+                                                           reinf_layers_rho_factors=mc_reinf_layers_rho_factors,
+                                                           return_rho_list_M_max=True)
+        rho_list, mc_M_max = mc.plot_M_rho_and_util_factors(type='stress',
+                                                              rho_list=rho_list,
+                                                              n_rho=n_rho,
+                                                              reinf_layers_rho_factors=mc_reinf_layers_rho_factors,
+                                                              return_rho_list_M_max=True)
         fig = None
         if ax is None:
             fig, ax = plt.subplots()
             fig.set_size_inches(5.5, 3.4)
-        if rho_list is None:
-            rho_list = np.linspace(0.0002, 0.025, n_rho)
-        M_max = []
-        mc_M_max = []
-        for rho in rho_list:
-            self.cross_section_layout.items[0].A =  rho * self.get_bd()
-            self.state_changed = True
-            M = self.M_t / self.M_scale
-            M_max.append(np.max(M))
-
-            for i, factor in enumerate(mc_reinf_layers_rho_factors):
-                mc.cross_section_layout.items[i].A = factor * rho * mc.get_bd()
-            mc.state_changed = True
-            M = mc.M_t / mc.M_scale
-            mc_M_max.append(np.max(M))
 
         M_max_ratio = np.array(mc_M_max) / np.array(M_max)
         ratio_max = np.max(M_max_ratio)
@@ -586,32 +592,78 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         ax.grid(color='#e6e6e6', linewidth=0.7)
 
         if fig is not None:
-            return fig
+            return fig, ax
+
+    # def plot_M_rho_to_M_rho_for_other_mc(self, mc, rho_list=None, ax=None, n_rho=50, mc_reinf_layers_rho_factors=[1]):
+    #     fig = None
+    #     if ax is None:
+    #         fig, ax = plt.subplots()
+    #         fig.set_size_inches(5.5, 3.4)
+    #     if rho_list is None:
+    #         n_1 = int(0.35 * n_rho)
+    #         n_2 = int(0.25 * n_rho)
+    #         n_3 = n_rho - n_1 - n_2
+    #         rho_list = np.concatenate((np.linspace(0.0002, 0.004, n_1, endpoint=False),
+    #                                    np.linspace(0.004, 0.006, n_2, endpoint=False),
+    #                                    np.linspace(0.006, 0.025, n_3)))
+    #         print('Non regular rho_list was created (denser up to rho = 0.4%).')
+    #     M_max = []
+    #     mc_M_max = []
+    #     for rho in rho_list:
+    #         self.cross_section_layout.items[0].A = rho * self.get_bd()
+    #         self.state_changed = True
+    #         M = self.M_t / self.M_scale
+    #         M_max.append(np.max(M))
+    #
+    #         for i, factor in enumerate(mc_reinf_layers_rho_factors):
+    #             mc.cross_section_layout.items[i].A = factor * rho * mc.get_bd()
+    #         mc.state_changed = True
+    #         M = mc.M_t / mc.M_scale
+    #         mc_M_max.append(np.max(M))
+    #
+    #     M_max_ratio = np.array(mc_M_max) / np.array(M_max)
+    #     ratio_max = np.max(M_max_ratio)
+    #     ax.axhline(y=ratio_max, color='r')
+    #     ax.annotate(r'max= ' + str(ratio_max), xy=(0, 1.04 * ratio_max), color='r')
+    #
+    #     ax.plot(rho_list, M_max_ratio, c='black')
+    #     ax.set_ylabel(r'$M_\mathrm{max2}/M_\mathrm{max1}$')
+    #     ax.set_xlabel(r'Reinforcement ratio $\rho$')
+    #     ax.set_ylim(ymin=0)
+    #     ax.set_xlim(xmin=0)
+    #     ax.grid(color='#e6e6e6', linewidth=0.7)
+    #
+    #     if fig is not None:
+    #         return fig, ax
 
     # Backward compatibility
-    def plot_M_rho_and_stress_rho(self, rho_list=None, axes=None, n_rho=30, reinf_layers_rho_factors=[1]):
+    def plot_M_rho_and_stress_rho(self, rho_list=None, axes=None, n_rho=50, reinf_layers_rho_factors=[1],
+                                  return_rho_list_M_max=False):
         return self.plot_M_rho_and_util_factors(type='stress', rho_list=rho_list, axes=axes, n_rho=n_rho,
-                                 reinf_layers_rho_factors=reinf_layers_rho_factors)
+                                                reinf_layers_rho_factors=reinf_layers_rho_factors,
+                                                return_rho_list_M_max=return_rho_list_M_max)
 
     # Backward compatibility
-    def plot_M_rho_and_strain_rho(self, rho_list=None, axes=None, n_rho=30, reinf_layers_rho_factors=[1]):
+    def plot_M_rho_and_strain_rho(self, rho_list=None, axes=None, n_rho=50, reinf_layers_rho_factors=[1],
+                                  return_rho_list_M_max=False):
         return self.plot_M_rho_and_util_factors(type='strain', rho_list=rho_list, axes=axes, n_rho=n_rho,
-                                         reinf_layers_rho_factors=reinf_layers_rho_factors)
+                                                reinf_layers_rho_factors=reinf_layers_rho_factors,
+                                                return_rho_list_M_max=return_rho_list_M_max)
 
-    def plot_M_rho_and_util_factors(self, type='stress', rho_list=None, axes=None, n_rho=30,
-                                    reinf_layers_rho_factors=[1]):
+    def plot_M_rho_and_util_factors(self, type='stress', rho_list=None, axes=None, n_rho=50,
+                                    reinf_layers_rho_factors=[1], return_rho_list_M_max=False):
         """
             :param reinf_layers_rho_factors: for two reinf layers setting this to [0.5, 0.5] will assign
             rho value of 0.5 * rho to each reinf layer
             """
-        if axes is None:
-            fig, (ax_M, ax_util_conc) = plt.subplots(2, 1)
-            fig.set_size_inches(5.5, 6.8)
-        else:
-            ax_M, ax_util_conc = axes
-
         if rho_list is None:
-            rho_list = np.linspace(0.0002, 0.025, n_rho)
+            n_1 = int(0.35 * n_rho)
+            n_2 = int(0.25 * n_rho)
+            n_3 = n_rho - n_1 - n_2
+            rho_list = np.concatenate((np.linspace(0.0002, 0.004, n_1, endpoint=False),
+                                       np.linspace(0.004, 0.006, n_2, endpoint=False),
+                                       np.linspace(0.006, 0.025, n_3)))
+            print('Non regular rho_list was created (denser up to rho = 0.4%).')
         M_max = []
         reinf_st = []
         concrete_st_c = []
@@ -629,6 +681,15 @@ class MKappa(InteractiveModel, InjectSymbExpr):
                 reinf_max_st, concr_max_st_c, _ = self._get_strains_at_maxium_moment()
             reinf_st.append(reinf_max_st)
             concrete_st_c.append(concr_max_st_c)
+
+        if return_rho_list_M_max:
+            return rho_list, M_max
+
+        if axes is None:
+            fig, (ax_M, ax_util_conc) = plt.subplots(2, 1)
+            fig.set_size_inches(5.5, 6.8)
+        else:
+            ax_M, ax_util_conc = axes
         ax_M.plot(rho_list, M_max, c='black')
         last_M_max = M_max[-1]
 
@@ -695,7 +756,7 @@ class MKappa(InteractiveModel, InjectSymbExpr):
         ax_util_reinf.legend()
 
         if axes is None:
-            return fig
+            return fig, (ax_M, ax_util_conc)
 
     def plot_mk_for_rho(self, rho, ax=None):
         """ TODO: This works for one reinf layer """
