@@ -52,7 +52,8 @@ class MKappa(InteractiveModel, InjectSymbExpr):
     symb_class = MKappaSymbolic
     cs_design = Instance(CrossSectionDesign, ())
 
-    tree = ['cs_design']
+    depends_on = ['cs_design']
+    ipw_tree = ['cs_design']
     # Use PrototypedFrom only when the prototyped object is a class
     # (The prototyped attribute behaves similarly
     # to a delegated attribute, until it is explicitly

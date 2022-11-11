@@ -30,6 +30,7 @@ class ReinfLayer(InteractiveModel):
         Item('A', latex='A \mathrm{[mm^2]}'),
     )
 
+    depends_on = ['matmod']
     tree = ['matmod']
 
     def get_N(self, eps):
