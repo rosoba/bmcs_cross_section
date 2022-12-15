@@ -6,6 +6,8 @@ import traits.api as tr
 
 class ReinfMatMod(MatMod):
 
+    # TODO: replace factor with safety_format
+    # safety_format = tr.Enum('mean', 'characteristic', 'design')
     factor = bu.Float(1, MAT=True) # 1. / 1.15
     '''Factor to embed a EC2 based safety factors.
     This multiplication qualitatively modifies the material
@@ -16,25 +18,37 @@ class ReinfMatMod(MatMod):
     def get_f_ult(self):
         raise NotImplementedError
 
+    def get_eps_ult(self):
+        raise NotImplementedError
+
 class SteelReinfMatModSymbExpr(bu.SymbExpr):
     """Piecewise linear concrete material law
     """
     eps = sp.Symbol('eps', real=True)
 
-    eps_sy, eps_ud, E_s = sp.symbols(r'varepsilon_sy, varepsilon_ud, E_s', real=True, nonnegative=True)
+    eps_sy, eps_ud, E_s, f_st = sp.symbols(r'varepsilon_sy, varepsilon_ud, E_s, f_st', real=True, nonnegative=True)
 
-    ext = 0.7 # extension percentage after failure to avoid numerical solution instability
+    # sig = sp.Piecewise(
+    #     (0, eps < -eps_ud),
+    #     (-E_s * eps_sy, eps < -eps_sy),
+    #     (E_s * eps, eps < eps_sy),
+    #     (E_s * eps_sy, eps < eps_ud),
+    #     (0, True),
+    # )
+
+    ext = 0.7  # extension percentage after failure to avoid numerical solution instability
+    f_sy = E_s * eps_sy
     sig = sp.Piecewise(
         (0, eps < -eps_ud - ext * eps_sy),
-        (-(E_s / ext) * (eps_ud + ext * eps_sy + eps), eps < -eps_ud),
-        (-E_s * eps_sy, eps < -eps_sy),
+        (-f_st + f_st * (-eps - eps_ud) / (ext * eps_sy), eps < -eps_ud),
+        (-f_sy - (f_st - f_sy) * ((-eps - eps_sy) / (eps_ud - eps_sy)), eps < -eps_sy),
         (E_s * eps, eps < eps_sy),
-        (E_s * eps_sy, eps < eps_ud),
-        ((E_s / ext) * (eps_ud + ext * eps_sy - eps), eps < eps_ud + ext * eps_sy),
+        (f_sy + (f_st - f_sy) * ((eps - eps_sy) / (eps_ud - eps_sy)), eps < eps_ud),
+        (f_st - f_st * (eps - eps_ud) / (ext * eps_sy), eps < eps_ud + ext * eps_sy),
         (0, True),
     )
 
-    symb_model_params = ('E_s', 'eps_sy', 'eps_ud')
+    symb_model_params = ('E_s', 'eps_sy', 'eps_ud', 'f_st')
 
     symb_expressions = [
         ('sig', ('eps',)),
@@ -48,17 +62,20 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
 
     E_s = bu.Float(200000, MAT=True, desc='E modulus of steel')
     f_sy = bu.Float(500, MAT=True, desc='steel yield stress')
+    f_st = bu.Float(525, MAT=True, desc='steel failure stress = k * f_sy; where k is ductility factor (k=1.05, k=1.08 '
+                                        'for A, B steel, respectively')
     eps_ud = bu.Float(0.025, MAT=True, desc='steel failure strain')
 
     eps_sy = tr.Property(bu.Float, depends_on='+MAT')
     @tr.cached_property
     def _get_eps_sy(self):
-        return self.factor * self.f_sy / self.E_s
+        return self.f_sy / self.E_s
 
     ipw_view = bu.View(
         bu.Item('factor'),
         bu.Item('E_s', latex=r'E_\mathrm{s} \mathrm{[N/mm^{2}]}'),
         bu.Item('f_sy', latex=r'f_\mathrm{sy} \mathrm{[N/mm^{2}]}'),
+        bu.Item('f_st', latex=r'f_\mathrm{st} \mathrm{[N/mm^{2}]}'),
         bu.Item('eps_ud', latex=r'\varepsilon_\mathrm{ud} \mathrm{[-]}'),
         bu.Item('eps_sy', latex=r'\varepsilon_\mathrm{sy} \mathrm{[-]}', readonly=True),
     )
@@ -67,14 +84,21 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
         return np.linspace(- 1.1*self.eps_ud, 1.1*self.eps_ud, 300)
 
     def get_sig(self, eps):
-        # temp = self.f_sy
-        # self.f_sy *= self.factor
+        ### TODO -- SIDE EFFECTS - NO-GO!!!
+        temp_f_sy = self.f_sy
+        temp_f_st = self.f_st
+        self.f_sy *= self.factor
+        self.f_st *= self.factor
         sig = self.symb.get_sig(eps)
-        # self.f_sy = temp
+        self.f_sy = temp_f_sy
+        self.f_st = temp_f_st
         return sig
 
     def get_f_ult(self):
-        return self.f_sy
+        return self.f_st
+
+    def get_eps_ult(self):
+        return self.eps_ud
 
 class CarbonReinfMatModSymbExpr(bu.SymbExpr):
     """Piecewise linear concrete material law
@@ -109,7 +133,7 @@ class CarbonReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
     eps_cr = tr.Property(bu.Float, depends_on='+MAT')
     @tr.cached_property
     def _get_eps_cr(self):
-        return self.factor * self.f_t / self.E
+        return self.f_t / self.E
 
     ipw_view = bu.View(
         bu.Item('factor'),
@@ -122,12 +146,16 @@ class CarbonReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
         return np.linspace(- 0.1*self.eps_cr, 1.1*self.eps_cr,300)
 
     def get_sig(self, eps):
+        # SIDE EFFECTS - NO GO!!!
         # TODO: factor should be applied only to strength in case of steel/carbon according to EC2
-        # temp = self.f_t
-        # self.f_t *= self.factor
+        temp = self.f_t
+        self.f_t *= self.factor
         sig = self.symb.get_sig(eps)
-        # self.f_t = temp
+        self.f_t = temp
         return sig
 
     def get_f_ult(self):
         return self.f_t
+
+    def get_eps_ult(self):
+        return self.eps_cr

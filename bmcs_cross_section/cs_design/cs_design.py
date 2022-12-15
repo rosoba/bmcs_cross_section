@@ -12,9 +12,9 @@ class CrossSectionDesign(Model):
     name = 'Cross Section Design'
 
     matrix = EitherType(options=[
-        ('piecewise linear', PWLConcreteMatMod),
         ('EC2', EC2ConcreteMatMod),
         ('EC2 with plateau', EC2PlateauConcreteMatMod),
+        ('piecewise linear', PWLConcreteMatMod),
         # ('EC2 softening tension', ConcreteMaterialModelAdv),
         ], MAT=True)
 
@@ -45,9 +45,8 @@ class CrossSectionDesign(Model):
                           CS=True, tree=True)
 
     ipw_view = View(
-        Item('matrix', latex=r'\mathrm{concrete behavior}', editor=EitherTypeEditor(show_properties=False)),
-        Item('cross_section_shape', latex=r'\mathrm{shape}', editor=EitherTypeEditor(show_properties=False)),
-        Item('cross_section_layout', latex=r'\mathrm{layout}'),
+        Item('matrix', latex=r'\mathrm{Conc.~law}', editor=EitherTypeEditor(show_properties=False)),
+        Item('cross_section_shape', latex=r'\mathrm{CS~shape}', editor=EitherTypeEditor(show_properties=False)),
     )
 
     def subplots(self, fig):

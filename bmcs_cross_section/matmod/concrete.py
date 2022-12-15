@@ -8,6 +8,9 @@ from bmcs_cross_section.matmod.matmod import MatMod
 
 class ConcreteMatMod(MatMod):
 
+    # TODO: replace factor with safety_format
+    # safety_format = tr.Enum('mean', 'characteristic', 'design')
+
     factor = bu.Float(1, MAT=True) # 0.85 / 1.5
     '''Factor to embed a EC2 based safety factors.
     This multiplication qualitatively modifies the material
@@ -66,7 +69,7 @@ class PWLConcreteMatMod(ConcreteMatMod, bu.InjectSymbExpr):
 
     E_ct = bu.Float(24000, MAT=True, desc='E modulus of matrix on tension')
     E_cc = bu.Float(25000, MAT=True, desc='E modulus of matrix on compression')
-    eps_cr = bu.Float(0.001, MAT=True, desc='Matrix cracking strain')
+    eps_cr = bu.Float(0.00015, MAT=True, desc='Matrix cracking strain')
     _eps_cy = bu.Float(-0.003, MAT=True)
     _eps_cu = bu.Float(-0.01, MAT=True)
 
@@ -83,15 +86,15 @@ class PWLConcreteMatMod(ConcreteMatMod, bu.InjectSymbExpr):
     def _get_eps_cu(self):
         return -np.fabs(self._eps_cu)
 
-    eps_tu = bu.Float(0.003, MAT=True, desc='Ultimate matrix tensile strain')
+    eps_tu = bu.Float(0.0004, MAT=True, desc='Ultimate matrix tensile strain')
 
     mu = bu.Float(0.33, MAT=True, desc='Post crack tensile strength ratio (represents how much strength is left after \
                                     the crack because of short steel fibers in the mixture)')
 
     ipw_view = bu.View(
         bu.Item('factor'),
-        bu.Item('E_ct', latex=r'E_\mathrm{ct} \mathrm{[N/mm^{2}]}'),
-        bu.Item('E_cc', latex=r'E_\mathrm{cc} \mathrm{[N/mm^{2}]}'),
+        bu.Item('E_ct', latex=r'E_\mathrm{ct} \mathrm{[MPa]}'),
+        bu.Item('E_cc', latex=r'E_\mathrm{cc} \mathrm{[MPa]}'),
         bu.Item('eps_cr', latex=r'\varepsilon_{cr}'),
         bu.Item('eps_cy', latex=r'\varepsilon_{cy}', editor=bu.FloatEditor()),
         bu.Item('eps_cu', latex=r'\varepsilon_{cu}', editor=bu.FloatEditor()),
@@ -100,7 +103,7 @@ class PWLConcreteMatMod(ConcreteMatMod, bu.InjectSymbExpr):
     )
 
     def get_eps_plot_range(self):
-        return np.linspace(1.1*self.eps_cu, 1.1*self.eps_tu,300)
+        return np.linspace(1.1 * self.eps_cu, 1.1 * self.eps_tu, 300)
 
     def get_sig(self,eps):
         return self.factor * self.symb.get_sig(eps)
@@ -152,18 +155,30 @@ class EC2ConcreteMatModBase(ConcreteMatMod):
         else:
             return EC2.get_E_cm(self.f_ck)
 
+
+    _f_ctm = None
+    f_ctm = tr.Property(desc='Axial tensile strength of concrete', MAT=True)
+    def _set_f_ctm(self, value):
+        self._f_ctm = value
+
+    def _get_f_ctm(self):
+        if self._f_ctm is not None:
+            return self._f_ctm
+        else:
+            return EC2.get_f_ctm(self.f_ck)
+
     ipw_view = bu.View(
-        bu.Item('f_cm', latex=r'^*f_\mathrm{cm}', editor=bu.FloatEditor()),
+        bu.Item('f_cm', latex=r'^*f_\mathrm{cm}~\mathrm{[MPa]}', editor=bu.FloatEditor()),
         bu.Item('eps_cr', latex=r'\varepsilon_{cr}', editor=bu.FloatEditor()),
         bu.Item('eps_tu', latex=r'\varepsilon_{tu}', editor=bu.FloatEditor()),
         bu.Item('mu', latex=r'\mu'),
-        bu.Item('E_ct', latex=r'E_\mathrm{ct} \mathrm{[N/mm^{2}]}', editor=bu.FloatEditor()),
-        bu.Item('E_cc', latex=r'E_\mathrm{cc} \mathrm{[N/mm^{2}]}', editor=bu.FloatEditor()),
+        bu.Item('E_ct', latex=r'E_\mathrm{ct}~\mathrm{[MPa]}', editor=bu.FloatEditor()),
+        bu.Item('E_cc', latex=r'E_\mathrm{cc}~\mathrm{[MPa]}', editor=bu.FloatEditor()),
         bu.Item('factor'),
     )
 
     def get_eps_plot_range(self):
-        return np.linspace(1.5 * self.eps_cu, 1.5 * self.eps_tu, 300)
+        return np.linspace(1.5 * self.eps_cu, 5 * self.eps_tu, 600)
 
 
 class EC2PlateauConcreteMatModSymbExpr(bu.SymbExpr):
@@ -300,7 +315,7 @@ class EC2ConcreteMatModSymbExpr(bu.SymbExpr):
     # -------------- Concrete material law according to EC2 Eq. (3.14) ------------------
     f_cm = sp.Symbol('f_cm', real=True)
 
-    # EC2 eq. (3.14)
+    # EC2 eq. (3.14) -----------
     k = 1.05 * E_cc * sp.Abs(eps_cy) / f_cm
     eta = eps / eps_cy
     sig_c = f_cm * (k * eta - eta ** 2) / (1 + eta * (k - 2))
@@ -313,6 +328,28 @@ class EC2ConcreteMatModSymbExpr(bu.SymbExpr):
         (-mu * E_ct * eps_cr, eps < eps_tu),
         (0, True)
     )
+
+    # # EC2 with Softening tensile branch -----------
+    # L_cb = 200  # [mm] finite length of the softening zone
+    # G_F = 0.073 * f_cm ** 0.18  # [N/mm] f_cm must be in MPa (fib Model Code 2010)
+    # # G_F = 0.028 * f_cm ** 0.18 * d_ag ** 0.32 # [N/mm] d_ag aggregate diameter (Mari & Cladera)
+    # f_ctm = eps_cr * E_ct # temporiarly until I include it directly instead in terms of eps_cr
+    # w1 = G_F / f_ctm
+    # eps_crack = (eps - f_ctm / E_ct)
+    # w = eps_crack * L_cb
+    # sig_ct_softening = f_ctm * sp.exp(-w / w1)
+    # # EC2 eq. (3.14)
+    # k = 1.05 * E_cc * sp.Abs(eps_cy) / f_cm
+    # eta = eps / eps_cy
+    # sig_c = f_cm * (k * eta - eta ** 2) / (1 + eta * (k - 2))
+    # sig = -sp.Piecewise(
+    #     (0, eps < sp.solve(sig_c, eps)[1]), # instead of (0, eps < eps_cu), to avoid extension when f_cm = 50
+    #     (sig_c, eps < 0),
+    #     # Tension branch
+    #     (-E_ct * eps, eps < eps_cr),
+    #     # Tension branch, adding post-peak branch
+    #     (-sig_ct_softening, True)
+    # )
 
     symb_model_params = ('E_ct', 'E_cc', 'eps_cr', 'eps_cy', 'eps_cu',
                          'mu', 'eps_tu', 'f_cm')
