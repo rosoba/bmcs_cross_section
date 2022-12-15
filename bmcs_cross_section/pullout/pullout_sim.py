@@ -591,7 +591,7 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
 
     hist_type = PulloutHist2
 
-    history = tr.Property()
+    history = tr.Property(bu.Instance(PulloutHist2))
     @tr.cached_property
     def _get_history(self):
         return self.hist
@@ -601,7 +601,17 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
     def _get_time_line(self):
         return self.sim.tline
 
-    tree = ['time_line', 'cross_section', 'geometry', 'material_model', 'loading_scenario', 'history']
+    depends_on = ['cross_section', 'geometry',
+                  'material_model',
+                  'loading_scenario',
+                  'history'
+                  ]
+    tree = [
+        # 'time_line', 'cross_section',
+        # 'geometry', 'material_model',
+        # 'loading_scenario',
+        'history'
+    ]
 
     def run(self):
         self.sim.run()
