@@ -26,18 +26,13 @@ class SteelReinfMatModSymbExpr(bu.SymbExpr):
     """
     eps = sp.Symbol('eps', real=True)
 
-    eps_sy, eps_ud, E_s, f_st = sp.symbols(r'varepsilon_sy, varepsilon_ud, E_s, f_st', real=True, nonnegative=True)
-
-    # sig = sp.Piecewise(
-    #     (0, eps < -eps_ud),
-    #     (-E_s * eps_sy, eps < -eps_sy),
-    #     (E_s * eps, eps < eps_sy),
-    #     (E_s * eps_sy, eps < eps_ud),
-    #     (0, True),
-    # )
+    eps_sy, eps_ud = sp.symbols(r'varepsilon_sy, varepsilon_ud', real=True, nonnegative=True)
+    E_s, f_st_scaled, f_sy_scaled = sp.symbols(r'E_s, f_st_scaled, f_sy_scaled', real=True, nonnegative=True)
 
     ext = 0.7  # extension percentage after failure to avoid numerical solution instability
-    f_sy = E_s * eps_sy
+    f_sy = f_sy_scaled
+    f_st = f_st_scaled
+    eps_sy = f_sy / E_s
     sig = sp.Piecewise(
         (0, eps < -eps_ud - ext * eps_sy),
         (-f_st + f_st * (-eps - eps_ud) / (ext * eps_sy), eps < -eps_ud),
@@ -48,7 +43,7 @@ class SteelReinfMatModSymbExpr(bu.SymbExpr):
         (0, True),
     )
 
-    symb_model_params = ('E_s', 'eps_sy', 'eps_ud', 'f_st')
+    symb_model_params = ('E_s', 'eps_ud', 'f_sy_scaled', 'f_st_scaled')
 
     symb_expressions = [
         ('sig', ('eps',)),
@@ -69,7 +64,7 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
     eps_sy = tr.Property(bu.Float, depends_on='+MAT')
     @tr.cached_property
     def _get_eps_sy(self):
-        return self.f_sy / self.E_s
+        return self.f_sy_scaled / self.E_s
 
     ipw_view = bu.View(
         bu.Item('factor'),
@@ -83,15 +78,16 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
     def get_eps_plot_range(self):
         return np.linspace(- 1.1*self.eps_ud, 1.1*self.eps_ud, 300)
 
+    f_sy_scaled = tr.Property
+    def _get_f_sy_scaled(self):
+        return self.factor * self.f_sy
+
+    f_st_scaled = tr.Property
+    def _get_f_st_scaled(self):
+        return self.factor * self.f_st
+
     def get_sig(self, eps):
-        temp_f_sy = self.f_sy
-        temp_f_st = self.f_st
-        self.f_sy *= self.factor
-        self.f_st *= self.factor
-        sig = self.symb.get_sig(eps)
-        self.f_sy = temp_f_sy
-        self.f_st = temp_f_st
-        return sig
+        return self.symb.get_sig(eps)
 
     def get_f_ult(self):
         return self.f_st
@@ -104,16 +100,16 @@ class CarbonReinfMatModSymbExpr(bu.SymbExpr):
     """
     eps = sp.Symbol('eps', real=True)
 
-    f_t, E = sp.symbols('f_t, E', real=True, nonnegative=True)
+    f_t_scaled, E = sp.symbols('f_t_scaled, E', real=True, nonnegative=True)
 
     sig = sp.Piecewise(
         (0, eps < 0),
-        (E * eps, eps < f_t/E),
-        (f_t - E * (eps - f_t/E), eps < 2 * f_t/E),
+        (E * eps, eps < f_t_scaled/E),
+        (f_t_scaled - E * (eps - f_t_scaled/E), eps < 2 * f_t_scaled/E),
         (0, True)
     )
 
-    symb_model_params = ('E', 'f_t')
+    symb_model_params = ('E', 'f_t_scaled')
 
     symb_expressions = [
         ('sig', ('eps',)),
@@ -144,13 +140,12 @@ class CarbonReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
     def get_eps_plot_range(self):
         return np.linspace(- 0.1*self.eps_cr, 1.1*self.eps_cr,300)
 
+    f_t_scaled = tr.Property
+    def _get_f_t_scaled(self):
+        return self.factor * self.f_t
+
     def get_sig(self, eps):
-        # TODO: factor should be applied only to strength in case of steel/carbon according to EC2
-        temp = self.f_t
-        self.f_t *= self.factor
-        sig = self.symb.get_sig(eps)
-        self.f_t = temp
-        return sig
+        return self.symb.get_sig(eps)
 
     def get_f_ult(self):
         return self.f_t

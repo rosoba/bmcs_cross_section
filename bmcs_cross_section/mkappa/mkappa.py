@@ -7,7 +7,7 @@ from matplotlib.ticker import PercentFormatter
 from bmcs_cross_section.cs_design import CrossSectionDesign
 from scipy.optimize import root
 from bmcs_utils.api import \
-    InteractiveModel, Instance, Item, View, mpl_align_xaxis, ParametricStudy, \
+    Model, Instance, Item, View, mpl_align_xaxis, ParametricStudy, \
     SymbExpr, InjectSymbExpr, Float, Int, Bool, FloatRangeEditor, FloatEditor, HistoryEditor
 
 from bmcs_cross_section.matmod.ec2 import EC2
@@ -47,14 +47,15 @@ class MKappaSymbolic(SymbExpr):
     ]
 
 
-class MKappa(InteractiveModel, InjectSymbExpr):
+class MKappa(Model, InjectSymbExpr):
     """Class returning the moment curvature relationship."""
     name = 'Moment-Curvature'
 
     symb_class = MKappaSymbolic
     cs_design = Instance(CrossSectionDesign, ())
 
-    tree = ['cs_design']
+    depends_on = ['cs_design']
+    ipw_tree = ['cs_design']
     # Use PrototypedFrom only when the prototyped object is a class
     # (The prototyped attribute behaves similarly
     # to a delegated attribute, until it is explicitly
