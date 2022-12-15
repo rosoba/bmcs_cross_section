@@ -12,20 +12,20 @@ class CrossSectionLayout(ModelList):
     cs_design = tr.WeakRef
     add_reinf_layer_btn = Button()
     remove_reinf_layer_btn = Button()
-    remove_reinf_layer_idx = Int()
+    reinf_layer_name = Str()
 
     @tr.observe('add_reinf_layer_btn')
     def add_reinf_layer_btn_click(self, event=None):
-        self.add_layer(ReinfLayer())
+        self.add_layer(ReinfLayer(name=self.reinf_layer_name))
 
     @tr.observe('remove_reinf_layer_btn')
     def remove_reinf_layer_btn_click(self, event=None):
-        idx = self.remove_reinf_layer_idx
-        if idx < len(self.items):
-            self.items.pop(idx)
-            print('Reinf layer ' + str(idx) + ' is removed!')
+        name = self.reinf_layer_name
+        if name in self.items:
+            self.items.pop(name)
+            print('Reinf layer "' + name + '" is removed!')
         else:
-            print('Reinf layer ' + str(idx) + ' doesn\'t exist to remove!')
+            print('Reinf layer "' + name + '" doesn\'t exist to remove!')
 
     def add_layer(self, rl):
         rl.cs_layout = self
@@ -54,7 +54,7 @@ class CrossSectionLayout(ModelList):
     ipw_view = View(
         Item('add_reinf_layer_btn', editor=ButtonEditor(icon='plus', label='Add reinf. layer')),
         Item('remove_reinf_layer_btn', editor=ButtonEditor(icon='minus', label='Remove reinf. layer')),
-        Item('remove_reinf_layer_idx', latex='\mathrm{Remove~idx}'),
+        Item('reinf_layer_name', latex='\mathrm{Layer~name}'),
     )
 
     def subplots(self, fig):
