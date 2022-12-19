@@ -3,22 +3,15 @@ from .cs_layout_dict import CrossSectionLayout
 from .cs_shape import Rectangle, Circle, TShape, CustomShape, ICrossSectionShape, IShape
 from bmcs_utils.api import Model, Item, View, EitherTypeEditor
 import traits.api as tr
-from bmcs_utils.api import \
-    Float, EitherType, Instance
-from bmcs_cross_section.matmod import \
-    PWLConcreteMatMod, EC2PlateauConcreteMatMod, EC2ConcreteMatMod
+import bmcs_utils.api as bu
+from bmcs_cross_section.matmod import ConcreteMatMod
 
 class CrossSectionDesign(Model):
     name = 'Cross Section Design'
 
-    matrix = EitherType(options=[
-        ('EC2', EC2ConcreteMatMod),
-        ('EC2 with plateau', EC2PlateauConcreteMatMod),
-        ('piecewise linear', PWLConcreteMatMod),
-        # ('EC2 softening tension', ConcreteMaterialModelAdv),
-        ], MAT=True)
+    matrix = bu.Instance(ConcreteMatMod, (), MAT=True)
 
-    cross_section_layout = Instance(CrossSectionLayout)
+    cross_section_layout = bu.Instance(CrossSectionLayout)
 
     def _cross_section_layout_default(self):
         return CrossSectionLayout(cs_design=self)
@@ -30,19 +23,18 @@ class CrossSectionDesign(Model):
     def _get_csl(self):
         return self.cross_section_layout
 
-    H = tr.Property(Float)
+    H = tr.Property(bu.Float)
     def _get_H(self):
         return self.cross_section_shape_.H
     def _set_H(self,value):
         self.cross_section_shape_.H = value
 
-    cross_section_shape = EitherType(
-                          options=[('rectangle', Rectangle),
-                                    # ('circle', Circle),
-                                   ('I-shape', IShape),
-                                    ('T-shape', TShape),
-                                   ('custom', CustomShape)],
-                          CS=True, tree=True)
+    cross_section_shape = bu.EitherType(options=[
+        ('rectangle', Rectangle),
+        ('I-shape', IShape),
+        ('T-shape', TShape),
+        ('custom', CustomShape)],
+    CS=True, tree=True)
 
     ipw_view = View(
         Item('concrete', latex=r'\mathrm{Conc.~law}', editor=EitherTypeEditor(show_properties=False)),
