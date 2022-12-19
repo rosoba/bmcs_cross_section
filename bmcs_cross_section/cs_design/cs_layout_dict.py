@@ -1,7 +1,7 @@
 import numpy as np
 import traits.api as tr
 from bmcs_utils.api import \
-    ModelDict, View, Item, EitherType, ModelList, List, Button, ButtonEditor, Int
+    ModelDict, View, Item, EitherType, ModelList, List, Button, ButtonEditor, Int, Str
 from .cs_reinf_layer import ReinfLayer
 
 
@@ -11,20 +11,23 @@ class CrossSectionLayout(ModelDict):
     cs_design = tr.WeakRef
     add_reinf_layer_btn = Button()
     remove_reinf_layer_btn = Button()
-    remove_reinf_layer_idx = Int()
+    reinf_layer_name = Str('Layer 1')
 
     @tr.observe('add_reinf_layer_btn')
     def add_reinf_layer_btn_click(self, event=None):
-        self.add_layer(ReinfLayer())
+        if self.reinf_layer_name in self.items:
+            print('Layer "' + self.reinf_layer_name + '" is already added!')
+        else:
+            self.add_layer(ReinfLayer(name=self.reinf_layer_name))
 
     @tr.observe('remove_reinf_layer_btn')
     def remove_reinf_layer_btn_click(self, event=None):
-        idx = self.remove_reinf_layer_idx
-        if idx < len(self.items):
-            self.items.pop(idx)
-            print('Reinf layer ' + str(idx) + ' is removed!')
+        name = self.reinf_layer_name
+        if name in self.items:
+            self.__delitem__(name)
+            print('Reinf layer "' + name + '" is removed!')
         else:
-            print('Reinf layer ' + str(idx) + ' doesn\'t exist to remove!')
+            print('Reinf layer "' + name + '" doesn\'t exist to remove!')
 
     def add_layer(self, rl):
         self.__setitem__(rl.name, rl)
@@ -56,7 +59,7 @@ class CrossSectionLayout(ModelDict):
     ipw_view = View(
         Item('add_reinf_layer_btn', editor=ButtonEditor(icon='plus', label='Add reinf. layer')),
         Item('remove_reinf_layer_btn', editor=ButtonEditor(icon='minus', label='Remove reinf. layer')),
-        Item('remove_reinf_layer_idx', latex='\mathrm{Remove~idx}'),
+        Item('reinf_layer_name', latex='\mathrm{Layer~name}'),
     )
 
     def subplots(self, fig):

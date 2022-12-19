@@ -336,8 +336,8 @@ class EC2ConcreteMatModSymbExpr(bu.SymbExpr):
     # # G_F = 0.028 * f_cm ** 0.18 * d_ag ** 0.32 # [N/mm] d_ag aggregate diameter (Mari & Cladera)
     # f_ctm = eps_cr * E_ct # temporiarly until I include it directly instead in terms of eps_cr
     # w1 = G_F / f_ctm
-    # eps_crack = (eps - f_ctm / E_ct)
-    # w = eps_crack * L_cb
+    # eps_crack = f_ctm / E_ct
+    # w = (eps - eps_crack) * L_cb
     # sig_ct_softening = f_ctm * sp.exp(-w / w1)
     # # EC2 eq. (3.14)
     # k = 1.05 * E_cc * sp.Abs(eps_cy) / f_cm

@@ -290,7 +290,7 @@ class MKappa(Model, InjectSymbExpr):
         # Get the crack bridging force in each reinforcement layer
         # given the corresponding crack-bridge law.
         N_tj = self.cross_section_layout.get_N_tj(eps_z_tj)
-        return -np.einsum('tj,j->t', N_tj, self.z_j)
+        return np.einsum('tj,j->t', N_tj, self.z_j)
 
     M_c_t = tr.Property(depends_on=DEPSTR)
     '''Bending moment (concrete)
@@ -301,18 +301,19 @@ class MKappa(Model, InjectSymbExpr):
         z_tm = self.z_m[np.newaxis, :]
         b_z_m = self.cross_section_shape_.get_b(z_tm)
         N_z_tm2 = b_z_m * self.get_sig_c_z(self.kappa_t, self.eps_bot_t, z_tm)
-        return -np.trapz(N_z_tm2 * z_tm, x=z_tm, axis=-1)
+        return np.trapz(N_z_tm2 * z_tm, x=z_tm, axis=-1)
         # Slightly faster option but first and last value will be slightly higher here
-        # return -np.sum(N_z_tm2 * z_tm * self.cross_section_shape_.H/self.n_kappa, axis=1)
+        # return np.sum(N_z_tm2 * z_tm * self.cross_section_shape_.H/self.n_kappa, axis=1)
 
     M_t = tr.Property(depends_on=DEPSTR)
     '''Bending moment
     '''
     @tr.cached_property
     def _get_M_t(self):
+        # Multiplied with (-1) to have positive moments when simply supported beam and negative moments when cantilever
         # print('M - k recalculated')
         eta_factor = 1.
-        return eta_factor * (self.M_c_t + self.M_s_t)
+        return - eta_factor * (self.M_c_t + self.M_s_t)
 
     # @tr.cached_property
     # def _get_M_t(self):
