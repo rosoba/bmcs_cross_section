@@ -3,7 +3,7 @@ from .cs_layout_dict import CrossSectionLayout
 from .cs_shape import Rectangle, Circle, TShape, CustomShape, ICrossSectionShape, IShape
 from bmcs_utils.api import Model, Item, View, EitherTypeEditor
 import traits.api as tr
-from bmcs_utils.trait_types import \
+from bmcs_utils.api import \
     Float, EitherType, Instance
 from bmcs_cross_section.matmod import \
     PWLConcreteMatMod, EC2PlateauConcreteMatMod, EC2ConcreteMatMod

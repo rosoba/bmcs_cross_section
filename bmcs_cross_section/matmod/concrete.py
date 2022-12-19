@@ -88,8 +88,9 @@ class PWLConcreteMatMod(ConcreteMatMod, bu.InjectSymbExpr):
 
     eps_tu = bu.Float(0.0004, MAT=True, desc='Ultimate matrix tensile strain')
 
-    mu = bu.Float(0.33, MAT=True, desc='Post crack tensile strength ratio (represents how much strength is left after \
-                                    the crack because of short steel fibers in the mixture)')
+    mu = bu.Float(0.33, MAT=True,
+                  desc='Post crack tensile strength ratio (represents how much strength is left after \
+                        the crack because of short steel fibers in the mixture)')
 
     ipw_view = bu.View(
         bu.Item('factor'),
