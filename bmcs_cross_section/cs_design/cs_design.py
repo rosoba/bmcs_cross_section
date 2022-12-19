@@ -23,8 +23,8 @@ class CrossSectionDesign(Model):
     def _cross_section_layout_default(self):
         return CrossSectionLayout(cs_design=self)
 
-    depends_on = ['matrix', 'cross_section_layout', 'cross_section_shape']
-    tree = ['matrix','cross_section_layout','cross_section_shape']
+    depends_on = ['concrete', 'cross_section_layout', 'cross_section_shape']
+    tree = ['concrete','cross_section_layout','cross_section_shape']
 
     csl = tr.Property()
     def _get_csl(self):
@@ -45,7 +45,7 @@ class CrossSectionDesign(Model):
                           CS=True, tree=True)
 
     ipw_view = View(
-        Item('matrix', latex=r'\mathrm{Conc.~law}', editor=EitherTypeEditor(show_properties=False)),
+        Item('concrete', latex=r'\mathrm{Conc.~law}', editor=EitherTypeEditor(show_properties=False)),
         Item('cross_section_shape', latex=r'\mathrm{CS~shape}', editor=EitherTypeEditor(show_properties=False)),
     )
 

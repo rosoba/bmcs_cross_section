@@ -49,7 +49,7 @@ def run_pullout_multi(*args, **kw):
 def run_cb_multi(*args, **kw):
     po = PullOutModel(n_e_x=100, k_max=1000, w_max=2.0)
     po.fixed_boundary = 'clamped left'
-    #po.fixed_boundary = 'loaded end (matrix)'
+    #po.fixed_boundary = 'loaded end (concrete)'
     po.sim.tline.step = 0.02
     po.geometry.L_x = 300.0
     po.loading_scenario.trait_set(loading_type='monotonic')
@@ -179,7 +179,7 @@ def run_multilinear_bond_slip_law_epoxy_tvlach():
 def run_two_steps():
     po = PullOutModel(n_e_x=60, k_max=5, w_max=1.0)
     po.sim.tline.step = 0.05
-    po.fixed_boundary = 'loaded end (matrix)'
+    po.fixed_boundary = 'loaded end (concrete)'
     po.loading_scenario.trait_set(loading_type='cyclic',
                                   amplitude_type='constant',
                                   loading_range='non-symmetric'

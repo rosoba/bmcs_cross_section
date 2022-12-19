@@ -13,7 +13,7 @@ from setuptools import find_packages, setup, Command
 
 # Package meta-data.
 NAME = 'bmcs_cross_section'
-DESCRIPTION = "Models of brittle-matrix composite cross sections."
+DESCRIPTION = "Models of brittle-concrete composite cross sections."
 URL = 'https://github.com/bmcs-group/bmcs_cross_section'
 EMAIL = 'rostislav.chudoba@rwt-aachen.de'
 AUTHOR = 'BMCS-Group'

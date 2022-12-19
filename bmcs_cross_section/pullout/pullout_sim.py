@@ -304,7 +304,7 @@ class PulloutHist(Hist, bu.Model, Vis2D):
         line_F0, = ax.fill([], [], color='white', alpha=1)
         line_F0.set_xy(x_F0)
 
-    def plot_u_p(self, ax, label_m='matrix', label_f='reinf'):
+    def plot_u_p(self, ax, label_m='concrete', label_f='reinf'):
         X_M = self.tstep_source.X_M
         L = self.tstep_source.geometry.L_x
         u_p = self.get_u_p().T
@@ -318,7 +318,7 @@ class PulloutHist(Hist, bu.Model, Vis2D):
         ax.legend(loc=2)
         return np.min(u_p), np.max(u_p)
 
-    def plot_eps_p(self, ax, label_m='matrix', label_f='reinf'):
+    def plot_eps_p(self, ax, label_m='concrete', label_f='reinf'):
         X_M = self.tstep_source.X_M
         L = self.tstep_source.geometry.L_x
         eps_p = self.get_eps_p().T
@@ -547,7 +547,7 @@ class CrossSection(BMCSLeafNode, RInputRecord):
                    unit=r'$\mathrm{mm}^2$',
                    symbol=r'A_\mathrm{m}',
                    auto_set=False, enter_set=True,
-                   desc='matrix area')
+                   desc='concrete area')
     A_f = bu.Float(153.9,
                    CS=True,
                    input=True,
@@ -804,23 +804,23 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
         self.w_max = value
 
     fixed_boundary = bu.Enum(
-        options=['non-loaded end (matrix)',
-                 'loaded end (matrix)',
+        options=['non-loaded end (concrete)',
+                 'loaded end (concrete)',
                  'non-loaded end (reinf)',
                  'clamped left'],
         BC=True,
-        desc='which side of the specimen is fixed [non-loaded end [matrix], loaded end [matrix], non-loaded end [reinf]]'
+        desc='which side of the specimen is fixed [non-loaded end [concrete], loaded end [concrete], non-loaded end [reinf]]'
     )
 
     fixed_dofs = Property(depends_on="state_changed")
 
     @cached_property
     def _get_fixed_dofs(self):
-        if self.fixed_boundary == 'non-loaded end (matrix)':
+        if self.fixed_boundary == 'non-loaded end (concrete)':
             return [0]
         elif self.fixed_boundary == 'non-loaded end (reinf)':
             return [1]
-        elif self.fixed_boundary == 'loaded end (matrix)':
+        elif self.fixed_boundary == 'loaded end (concrete)':
             return [self.controlled_dof - 1]
         elif self.fixed_boundary == 'clamped left':
             return [0, 1]

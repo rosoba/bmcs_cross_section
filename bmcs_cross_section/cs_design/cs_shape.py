@@ -272,7 +272,7 @@ class CustomShape(CrossSectionShapeBase):
     )
 
     _eps_tu = None
-    eps_tu = tr.Property(desc='Ultimate matrix tensile strain', MAT=True)
+    eps_tu = tr.Property(desc='Ultimate concrete tensile strain', MAT=True)
     def _set_eps_tu(self, value):
         self._eps_tu = value
     def _get_eps_tu(self):

@@ -67,8 +67,8 @@ class PWLConcreteMatMod(ConcreteMatMod, bu.InjectSymbExpr):
 
     symb_class = PWLConcreteMatModSymbExpr
 
-    E_ct = bu.Float(24000, MAT=True, desc='E modulus of matrix on tension')
-    E_cc = bu.Float(25000, MAT=True, desc='E modulus of matrix on compression')
+    E_ct = bu.Float(24000, MAT=True, desc='E modulus of concrete on tension')
+    E_cc = bu.Float(25000, MAT=True, desc='E modulus of concrete on compression')
     eps_cr = bu.Float(0.00015, MAT=True, desc='Matrix cracking strain')
     _eps_cy = bu.Float(-0.003, MAT=True)
     _eps_cu = bu.Float(-0.01, MAT=True)
@@ -80,13 +80,13 @@ class PWLConcreteMatMod(ConcreteMatMod, bu.InjectSymbExpr):
     def _get_eps_cy(self):
         return -np.fabs(self._eps_cy)
 
-    eps_cu = tr.Property(desc='Ultimate matrix compressive strain')
+    eps_cu = tr.Property(desc='Ultimate concrete compressive strain')
     def _set_eps_cu(self, value):
         self._eps_cu = value
     def _get_eps_cu(self):
         return -np.fabs(self._eps_cu)
 
-    eps_tu = bu.Float(0.0004, MAT=True, desc='Ultimate matrix tensile strain')
+    eps_tu = bu.Float(0.0004, MAT=True, desc='Ultimate concrete tensile strain')
 
     mu = bu.Float(0.33, MAT=True,
                   desc='Post crack tensile strength ratio (represents how much strength is left after \
@@ -127,7 +127,7 @@ class EC2ConcreteMatModBase(ConcreteMatMod):
             return EC2.get_f_ctm(self.f_ck) / self.E_ct
 
     _eps_tu = None
-    eps_tu = tr.Property(desc='Ultimate matrix tensile strain', MAT=True)
+    eps_tu = tr.Property(desc='Ultimate concrete tensile strain', MAT=True)
     def _set_eps_tu(self, value):
         self._eps_tu = value
     def _get_eps_tu(self):
@@ -137,7 +137,7 @@ class EC2ConcreteMatModBase(ConcreteMatMod):
             return self.eps_cr
 
     _E_cc = None
-    E_cc = tr.Property(desc='E modulus of matrix on compression', MAT=True)
+    E_cc = tr.Property(desc='E modulus of concrete on compression', MAT=True)
     def _set_E_cc(self, value):
         self._E_cc = value
     def _get_E_cc(self):
@@ -147,7 +147,7 @@ class EC2ConcreteMatModBase(ConcreteMatMod):
             return EC2.get_E_cm(self.f_ck)
 
     _E_ct = None
-    E_ct = tr.Property(desc='E modulus of matrix on tension', MAT=True)
+    E_ct = tr.Property(desc='E modulus of concrete on tension', MAT=True)
     def _set_E_ct(self, value):
         self._E_ct = value
     def _get_E_ct(self):
@@ -284,7 +284,7 @@ class EC2PlateauConcreteMatMod(EC2ConcreteMatModBase, bu.InjectSymbExpr):
     def _get_eps_cy(self):
         return -EC2.get_eps_c2(self.f_ck)
 
-    eps_cu = tr.Property(desc='Ultimate matrix compressive strain', MAT=True)
+    eps_cu = tr.Property(desc='Ultimate concrete compressive strain', MAT=True)
     def _get_eps_cu(self):
         return -EC2.get_eps_cu2(self.f_ck)
 
@@ -375,7 +375,7 @@ class EC2ConcreteMatMod(EC2ConcreteMatModBase, bu.InjectSymbExpr):
     def _get_eps_cy(self):
         return -EC2.get_eps_c1(self.f_ck)
 
-    eps_cu = tr.Property(desc='Ultimate matrix compressive strain', MAT=True)
+    eps_cu = tr.Property(desc='Ultimate concrete compressive strain', MAT=True)
     def _get_eps_cu(self):
         return -EC2.get_eps_cu1(self.f_ck)
 

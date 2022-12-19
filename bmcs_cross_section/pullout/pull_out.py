@@ -6,7 +6,7 @@ import sympy as sp
 import traits.api as tr
 
 class PO_ELF_RLM_Symb(bu.SymbExpr):
-    """Pullout of elastic Long fiber, fromm rigid long matrix
+    """Pullout of elastic Long fiber, fromm rigid long concrete
     """
     E_f, A_f = sp.symbols(r'E_\mathrm{f}, A_\mathrm{f}', positive=True)
     E_m, A_m = sp.symbols(r'E_\mathrm{m}, A_\mathrm{m}', positive=True)
@@ -76,7 +76,7 @@ class PO_ELF_RLM_Symb(bu.SymbExpr):
     ]
 
 class PO_ELF_ELM_Symb(bu.SymbExpr):
-    """Pullout of elastic Long fiber, fromm elastic long matrix
+    """Pullout of elastic Long fiber, fromm elastic long concrete
     """
     E_m, A_m = sp.symbols(r'E_\mathrm{m}, A_\mathrm{m}', nonnegative=True)
     E_f, A_f = sp.symbols(r'E_\mathrm{f}, A_\mathrm{f}', nonnegative=True)
@@ -254,7 +254,7 @@ class PO_ESF_RLM_Symb(PO_ELF_RLM_Symb):
 
 class PullOutAModel(bu.Model, bu.InjectSymbExpr):
     """
-    Pullout elastic long fiber and rigid long matrix
+    Pullout elastic long fiber and rigid long concrete
     """
     symb_class = PO_ESF_RLM_Symb
 
