@@ -65,7 +65,7 @@ class MKappa(Model, InjectSymbExpr):
     cross_section_shape = tr.DelegatesTo('cs_design')
     cross_section_shape_ = tr.DelegatesTo('cs_design')
     cross_section_layout = tr.DelegatesTo('cs_design')
-    matrix_ = tr.DelegatesTo('cs_design')
+    matrix = tr.DelegatesTo('cs_design', 'concrete')
 
     # Geometry
     H = tr.DelegatesTo('cross_section_shape_')
@@ -157,7 +157,7 @@ class MKappa(Model, InjectSymbExpr):
     def get_sig_c_z(self, kappa_t, eps_bot_t, z_tm):
         """Get the stress profile over the height"""
         eps_z = self.symb.get_eps_z(kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis], z_tm)
-        sig_c_z = self.matrix_.get_sig(eps_z)
+        sig_c_z = self.matrix.get_sig(eps_z)
         return sig_c_z
 
     # Normal force in concrete (tension and compression)
@@ -531,13 +531,16 @@ class MKappa(Model, InjectSymbExpr):
     def get_M_n_ACI(self):
         """
         According to ACI 440.1R-15
+
+        RC - concrete must specify mean strength
         """
         matmod = self.cross_section_layout.items[0].matmod
         reinf_layers_num = len(self.cross_section_layout.items)
         if matmod != 'carbon' or reinf_layers_num > 1:
             print('This approach is valid only for FRP reinf. with 1 reinf. layer!')
             return
-        f_cm = self.matrix_.f_cm
+        ##### CHECK - only possible in SIM mode
+        f_cm = self.matrix.compression_.f_c
         f_fu = self.cross_section_layout.items[0].matmod_.f_t
         E_f = self.cross_section_layout.items[0].matmod_.E
         A_f = self.cross_section_layout.items[0].A
@@ -702,7 +705,7 @@ class MKappa(Model, InjectSymbExpr):
             concrete_st_c = concrete_st_c / max_c
             print('Conc. normalized by max_c = ', max_c)
         elif type == 'strain':
-            concrete_st_c = np.abs(concrete_st_c / self.matrix_.eps_cu)
+            concrete_st_c = np.abs(concrete_st_c / self.matrix.compression_.eps_cu)
             concrete_st_c = np.where(concrete_st_c > 1, 1, concrete_st_c)
 
         reinf_st_lr = np.array(reinf_st).T  # where l is index for reinf layer and r for rho

@@ -1,6 +1,6 @@
 from bmcs_cross_section.mkappa.mkappa import MKappa, MKappaParamsStudy
 from bmcs_cross_section.matmod import \
-    ConcreteMatMod, EC2PlateauConcreteMatMod, EC2ConcreteMatMod, PWLConcreteMatMod, SteelReinfMatMod, CarbonReinfMatMod
+    ConcreteMatMod, SteelReinfMatMod, CarbonReinfMatMod
 from bmcs_cross_section.matmod.ec2 import EC2
 # from bmcs_cross_section.pullout import PullOutModel1D
 # from bmcs_cross_section.pullout.pullout_sim import PullOutModel

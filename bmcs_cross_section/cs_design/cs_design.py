@@ -9,7 +9,9 @@ from bmcs_cross_section.matmod import ConcreteMatMod
 class CrossSectionDesign(Model):
     name = 'Cross Section Design'
 
-    matrix = bu.Instance(ConcreteMatMod, (), MAT=True)
+    concrete = bu.Instance(ConcreteMatMod)
+    def _concrete_default(self):
+        return ConcreteMatMod()
 
     cross_section_layout = bu.Instance(CrossSectionLayout)
 
@@ -37,7 +39,7 @@ class CrossSectionDesign(Model):
     CS=True, tree=True)
 
     ipw_view = View(
-        Item('concrete', latex=r'\mathrm{Conc.~law}', editor=EitherTypeEditor(show_properties=False)),
+        Item('concrete', latex=r'\mathrm{Conc.~law}'),
         Item('cross_section_shape', latex=r'\mathrm{CS~shape}', editor=EitherTypeEditor(show_properties=False)),
     )
 

@@ -43,9 +43,17 @@ class ConcreteMatMod(MatMod):
     def get_sig(self, eps):
         """Given the sign of strain choose either the tensile or compressive law
         """
-        T = np.where(eps>0)
-        C = np.where(eps<=0)
-        sig = np.zeros_like(eps)
-        sig[T] = self.tension_.get_sig(eps[T])
-        sig[C] = self.compression_.get_sig(eps[C])
-        return sig
+        return np.where(eps>0,
+            self.tension_.get_sig(eps),
+            self.compression_.get_sig(eps)
+        )
+
+pwl_concrete_matmod = ConcreteMatMod(
+    compression = 'piecewise-linear',
+    tension = 'piecewise-linear'
+)
+
+ec2_concrete_matmod = ConcreteMatMod(
+    compression = 'EC2',
+    tension = 'piecewise-linear'
+)
