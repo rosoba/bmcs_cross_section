@@ -352,7 +352,7 @@ class MKappa(Model, InjectSymbExpr):
                               self.eps_bot_t[:, np.newaxis], self.z_m[np.newaxis, :])
 
     sig_tm = tr.Property(depends_on=DEPSTR)
-    '''strain profiles
+    '''stress profiles
     '''
 
     @tr.cached_property
@@ -436,8 +436,8 @@ class MKappa(Model, InjectSymbExpr):
     M_scale = Float(1e+6)
     plot_mk_inverse = Bool(False)
 
-    def plot(self, ax1, ax2, ax3):
-        self.plot_mk_and_stress_profile(ax1, ax2)
+    def plot(self, ax1, ax2, ax22, ax3):
+        self.plot_mk_and_stress_profile(ax1, ax2, ax22)
         if self.plot_mk_inverse:
             self.plot_mk_inv(ax3)
         else:
@@ -446,7 +446,8 @@ class MKappa(Model, InjectSymbExpr):
     @staticmethod
     def subplots(fig):
         ax1, ax2, ax3 = fig.subplots(1, 3)
-        return ax1, ax2, ax3
+        ax22 = ax2.twiny()
+        return ax1, ax2, ax22, ax3
 
     def update_plot(self, axes):
         self.plot(*axes)
@@ -461,7 +462,7 @@ class MKappa(Model, InjectSymbExpr):
         ax3.set_xlabel('Moment [kNm]')
         ax3.set_ylabel('Curvature[mm$^{-1}$]')
 
-    def plot_mk_and_stress_profile(self, ax1, ax2):
+    def plot_mk_and_stress_profile(self, ax1, ax2, ax22):
         self.plot_mk(ax1)
         idx = self.idx
         ax1.plot(self.kappa_t[idx], self.M_t[idx] / self.M_scale, color='orange', marker='o')
@@ -471,7 +472,6 @@ class MKappa(Model, InjectSymbExpr):
             ax2.set_ylabel('z [mm]')
             ax2.set_xlabel('$\sigma_r$ [MPa]')
 
-        ax22 = ax2.twiny()
         ax22.set_xlabel('$\sigma_c$ [MPa]')
         ax22.plot(self.sig_tm[idx, :], self.z_m)
         ax22.axvline(0, linewidth=0.8, color='k')

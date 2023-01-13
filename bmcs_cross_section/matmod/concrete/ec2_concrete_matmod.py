@@ -64,7 +64,7 @@ class EC2ConcreteMatModSymbExpr(bu.SymbExpr):
         ('sig', ('eps',)),
     ]
 
-class EC2ConcreteMatMod(ConcreteMatModBase, bu.InjectSymbExpr):
+class EC2ConcreteMatMod(EC2ConcreteMatModBase, bu.InjectSymbExpr):
     name = 'EC2 Concrete'
 
     symb_class = EC2ConcreteMatModSymbExpr
