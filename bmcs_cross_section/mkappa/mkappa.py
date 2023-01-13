@@ -498,7 +498,7 @@ class MKappa(Model, InjectSymbExpr):
         if self.cross_section_shape != 'rectangle':
             return self.cross_section_shape_.get_cs_area()
 
-        z = self.cross_section_layout.items[0].z
+        z = list(self.cross_section_layout.items.values())[0].z
         h = self.cross_section_shape_.H
         b = self.cross_section_shape_.B
         if upper_reinforcement:
@@ -521,7 +521,7 @@ class MKappa(Model, InjectSymbExpr):
         idx = self.get_idx_matching_kappa_value(kappa_by_M_max)
         reinf_max_strain = []
         # get it for all reinf layers
-        for reinf_item in self.cross_section_layout.items:
+        for reinf_item in list(self.cross_section_layout.items.values()):
             z = reinf_item.z
             reinf_max_strain.append(np.interp(z, self.z_m, self.eps_tm[idx, :]))
         concr_max_strain_t = np.max(self.eps_tm[idx, :])
@@ -532,16 +532,16 @@ class MKappa(Model, InjectSymbExpr):
         """
         According to ACI 440.1R-15
         """
-        matmod = self.cross_section_layout.items[0].matmod
-        reinf_layers_num = len(self.cross_section_layout.items)
+        matmod = list(self.cross_section_layout.items.values())[0].matmod
+        reinf_layers_num = len(list(self.cross_section_layout.items.values()))
         if matmod != 'carbon' or reinf_layers_num > 1:
             print('This approach is valid only for FRP reinf. with 1 reinf. layer!')
             return
         f_cm = self.matrix_.f_cm
-        f_fu = self.cross_section_layout.items[0].matmod_.f_t
-        E_f = self.cross_section_layout.items[0].matmod_.E
-        A_f = self.cross_section_layout.items[0].A
-        z = self.cross_section_layout.items[0].z
+        f_fu = list(self.cross_section_layout.items.values())[0].matmod_.f_t
+        E_f = list(self.cross_section_layout.items.values())[0].matmod_.E
+        A_f = list(self.cross_section_layout.items.values())[0].A
+        z = list(self.cross_section_layout.items.values())[0].z
         d = self.cross_section_shape_.H - z
         b = self.cross_section_shape_.B
         rho = A_f / (b * d)
@@ -612,7 +612,7 @@ class MKappa(Model, InjectSymbExpr):
     #     M_max = []
     #     mc_M_max = []
     #     for rho in rho_list:
-    #         self.cross_section_layout.items[0].A = rho * self.get_bd()
+    #         list(self.cross_section_layout.items.values())[0].A = rho * self.get_bd()
     #         self.state_changed = True
     #         M = self.M_t / self.M_scale
     #         M_max.append(np.max(M))
@@ -672,7 +672,7 @@ class MKappa(Model, InjectSymbExpr):
 
         for rho in rho_list:
             for i, factor in enumerate(reinf_layers_rho_factors):
-                self.cross_section_layout.items[i].A = factor * rho * self.get_bd()
+                list(self.cross_section_layout.items.values())[i].A = factor * rho * self.get_bd()
             self.state_changed = True
             M = self.M_t / self.M_scale
             M_max.append(np.max(M))
@@ -714,7 +714,7 @@ class MKappa(Model, InjectSymbExpr):
         c2 = 'red'
         ax_util_reinf = ax_util_conc.twinx()
         for i, reinf_st in enumerate(reinf_st_lr):
-            reinf_item = self.cross_section_layout.items[i]
+            reinf_item = list(self.cross_section_layout.items.values())[i]
             matmod = reinf_item.matmod
             z = reinf_item.z
             if type == 'stress':
@@ -762,8 +762,8 @@ class MKappa(Model, InjectSymbExpr):
 
     def plot_mk_for_rho(self, rho, ax=None):
         """ TODO: This works for one reinf layer """
-        A_old = self.cross_section_layout.items[0].A
-        self.cross_section_layout.items[0].A = rho * self.get_bd()
+        A_old = list(self.cross_section_layout.items.values())[0].A
+        list(self.cross_section_layout.items.values())[0].A = rho * self.get_bd()
         self.state_changed = True
 
         if ax is None:
@@ -771,7 +771,7 @@ class MKappa(Model, InjectSymbExpr):
         self.plot_mk(ax)
 
         # Reassign the old value
-        self.cross_section_layout.items[0].A = A_old
+        list(self.cross_section_layout.items.values())[0].A = A_old
         self.state_changed = True
 
         if ax is None:

@@ -124,7 +124,12 @@ class EC2ConcreteMatModBase(ConcreteMatMod):
         if self._eps_cr is not None:
             return self._eps_cr
         else:
-            return EC2.get_f_ctm(self.f_ck) / self.E_ct
+            if self.factor == 1:
+                return EC2.get_f_ctm(self.f_ck) / self.E_ct
+            else:
+                f_ctk = EC2.get_f_ctk_0_05(self.f_ck)
+                E_k = self.f_ck / EC2.get_eps_c3(self.f_ck)
+                return f_ctk / E_k
 
     _eps_tu = None
     eps_tu = tr.Property(desc='Ultimate matrix tensile strain', MAT=True)
@@ -144,7 +149,11 @@ class EC2ConcreteMatModBase(ConcreteMatMod):
         if self._E_cc is not None:
             return self._E_cc
         else:
-            return EC2.get_E_cm(self.f_ck)
+            if self.factor == 1:
+                return EC2.get_E_cm(self.f_ck)
+            else:
+                E_k = self.f_ck / EC2.get_eps_c3(self.f_ck)
+                return E_k
 
     _E_ct = None
     E_ct = tr.Property(desc='E modulus of matrix on tension', MAT=True)
@@ -154,7 +163,11 @@ class EC2ConcreteMatModBase(ConcreteMatMod):
         if self._E_ct is not None:
             return self._E_ct
         else:
-            return EC2.get_E_cm(self.f_ck)
+            if self.factor == 1:
+                return EC2.get_E_cm(self.f_ck)
+            else:
+                E_k = self.f_ck / EC2.get_eps_c3(self.f_ck)
+                return E_k
 
 
     _f_ctm = None
