@@ -51,9 +51,17 @@ class CrossSectionLayout(ModelDict):
     def _get_A_j(self):
         return np.array([r.A for r in self.items.values()], dtype=np.float_)
 
+    eps_0_j = tr.Property
+    """Prestressing strain
+    """
+    def _get_eps_0_j(self):
+        return np.array([r.eps_0 for r in self.items.values()], dtype=np.float_)
+
+
     def get_N_tj(self, eps_tj):
+        eps_tot_tj = self.eps_0_j + eps_tj
         return np.array([r.get_N(eps_t)
-                         for r, eps_t in zip(self.items.values(), eps_tj.T)],
+                         for r, eps_t in zip(self.items.values(), eps_tot_tj.T)],
                         dtype=np.float_).T
 
     ipw_view = View(

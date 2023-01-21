@@ -1,11 +1,11 @@
 import numpy as np
 import traits.api as tr
 from bmcs_utils.api import \
-    InteractiveModel, Item, View, Float, Int, FloatEditor, EitherType, EitherTypeEditor
+    Model, Item, View, Float, Int, EitherType, EitherTypeEditor
 from bmcs_cross_section.matmod import ReinfMatMod, SteelReinfMatMod, CarbonReinfMatMod
 
 
-class ReinfLayer(InteractiveModel):
+class ReinfLayer(Model):
     # TODO: changes in the ipw interactive window doesn't reflect on mkappa
     #  (maybe because these are lists and changing the elements doesn't notify)
     name = 'Reinf layer'
@@ -21,6 +21,9 @@ class ReinfLayer(InteractiveModel):
     A = Float(100, CS=True)
     """Cross sectional area"""
 
+    eps_0 = Float(0, CS=True)
+    """Prestressing strain"""
+
     matmod = EitherType(options=[('steel', SteelReinfMatMod),
                                  ('carbon', CarbonReinfMatMod)])
 
@@ -28,6 +31,7 @@ class ReinfLayer(InteractiveModel):
         Item('matmod', latex=r'\mathrm{behavior}', editor=EitherTypeEditor(show_properties=False)),
         Item('z', latex='z \mathrm{[mm]}'),
         Item('A', latex='A \mathrm{[mm^2]}'),
+        Item('eps_0', label='\varepsilon_0 [-]')
     )
 
     depends_on = ['matmod']
@@ -74,6 +78,7 @@ class FabricLayer(ReinfLayer):
         Item('width', latex='\mathrm{fabric~width} \mathrm{[mm]}'),
         Item('spacing', latex='\mathrm{rov~spacing} \mathrm{[mm]}'),
         Item('A_roving', latex='A_r \mathrm{[mm^2]}'),
+        Item('eps_0', label='\varepsilon_0 [-]'),
         Item('A', latex=r'A [mm^2]', readonly=True),
     )
 
@@ -104,5 +109,6 @@ class BarLayer(ReinfLayer):
         Item('z', latex=r'z \mathrm{[mm]}'),
         Item('ds', latex=r'ds \mathrm{[mm]}'),
         Item('count', latex='count'),
-        Item('A', latex=r'A [mm^2]'),
+        Item('eps_0', label='\varepsilon_0 [-]'),
+        Item('A', latex=r'A [mm^2]', readonly=True),
     )
