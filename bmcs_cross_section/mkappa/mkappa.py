@@ -7,8 +7,7 @@ from matplotlib.ticker import PercentFormatter
 from bmcs_cross_section.cs_design import CrossSectionDesign
 from scipy.optimize import root
 from bmcs_utils.api import \
-    Model, Instance, Item, View, mpl_align_xaxis, ParametricStudy, \
-    SymbExpr, InjectSymbExpr, Float, Int, Bool, FloatRangeEditor, FloatEditor, HistoryEditor
+    Model, Instance, Item, View, mpl_align_xaxis, SymbExpr, InjectSymbExpr, Float, Int, Bool, HistoryEditor
 
 from bmcs_cross_section.matmod.ec2 import EC2
 
@@ -139,15 +138,20 @@ class MKappa(Model, InjectSymbExpr):
     def _get_A_j(self):
         return self.cross_section_layout.A_j
 
-    # Normal force in steel (tension and compression)
-    def get_N_s_tj(self, kappa_t, eps_bot_t):
-        # get the strain at the height of the reinforcement
-        eps_z_tj = self.symb.get_eps_z(
+    def get_eps_z_tj(self, kappa_t, eps_bot_t):
+        """strains in all reinforcement layers
+        """
+        return self.symb.get_eps_z(
             kappa_t[:, np.newaxis], eps_bot_t[:, np.newaxis],
             self.z_j[np.newaxis, :]
         )
+
+    # Normal force in steel (tension and compression)
+    def get_N_s_tj(self, kappa_t, eps_bot_t):
+        # get the strain at the height of the reinforcement
         # Get the crack bridging force in each reinforcement layer
         # given the corresponding crack-bridge law.
+        eps_z_tj = self.get_eps_z_tj(kappa_t, eps_bot_t)
         N_s_tj = self.cross_section_layout.get_N_tj(eps_z_tj)
         return N_s_tj
 
@@ -176,44 +180,13 @@ class MKappa(Model, InjectSymbExpr):
 
     # SOLVER: Get eps_bot to render zero force
 
-    # num_of_trials = tr.Int(30)
-
-    eps_bot_t = tr.Property(depends_on=DEPSTR)
+    eps_bot_sol_t = tr.Property(depends_on=DEPSTR)
     r'''Resolve the tensile strain to get zero normal force for the prescribed curvature'''
-
-    # @tr.cached_property
-    # def _get_eps_bot_t(self):
-    #     initial_step = (self.high_kappa - self.low_kappa) / self.num_of_trials
-    #     for i in range(self.num_of_trials):
-    #         print('Solution started...')
-    #         res = root(lambda eps_bot_t: self.get_N_t(self.kappa_t, eps_bot_t),
-    #                    0.0000001 + np.zeros_like(self.kappa_t), tol=1e-6)
-    #         if res.success:
-    #             print('success high_kappa: ', self.high_kappa)
-    #             if i == 0:
-    #                 print('Note: high_kappa success from 1st try! selecting a higher value for high_kappa may produce '
-    #                       'a more reliable result!')
-    #             return res.x
-    #         else:
-    #             print('failed high_kappa: ', self.high_kappa)
-    #             self.high_kappa -= initial_step
-    #             self.kappa_t = np.linspace(self.low_kappa, self.high_kappa, self.n_kappa)
-    #
-    #     print('No solution', res.message)
-    #     return res.x
-
-    # @tr.cached_property
-    # def _get_eps_bot_t(self):
-    #     res = root(lambda eps_bot_t: self.get_N_t(self.kappa_t, eps_bot_t),
-    #                0.0000001 + np.zeros_like(self.kappa_t), tol=1e-6)
-    #     if not res.success:
-    #         raise SolutionNotFoundError('No solution', res.message)
-    #     return res.x
 
     solve_for_eps_bot_pointwise = Bool(True, BC=True, GEO=True)
 
     @tr.cached_property
-    def _get_eps_bot_t(self):
+    def _get_eps_bot_sol_t(self):
         if self.solve_for_eps_bot_pointwise:
             """ INFO: Instability in eps_bot solutions was caused by unsuitable init_guess value causing a convergence 
             to non-desired solutions. Solving the whole kappa_t array improved the init_guess after each
@@ -262,6 +235,15 @@ class MKappa(Model, InjectSymbExpr):
             return list(reversed(res))
 
     # POSTPROCESSING
+
+    eps_z_sol_tj = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_eps_z_sol_tj(self):
+        return self.symb.get_eps_z(
+            self.kappa_t[:, np.newaxis], self.eps_bot_sol_t[:, np.newaxis],
+            self.z_j[np.newaxis, :]
+        )
+
     kappa_cr = tr.Property(depends_on=DEPSTR)
     '''Curvature at which a critical strain is attained at the eps_bot'''
 
@@ -282,10 +264,7 @@ class MKappa(Model, InjectSymbExpr):
         if len(self.z_j) == 0:
             return np.zeros_like(self.kappa_t)
 
-        eps_z_tj = self.symb.get_eps_z(
-            self.kappa_t[:, np.newaxis], self.eps_bot_t[:, np.newaxis],
-            self.z_j[np.newaxis, :]
-        )
+        eps_z_tj = self.eps_z_sol_tj
 
         # Get the crack bridging force in each reinforcement layer
         # given the corresponding crack-bridge law.
@@ -300,7 +279,7 @@ class MKappa(Model, InjectSymbExpr):
     def _get_M_c_t(self):
         z_tm = self.z_m[np.newaxis, :]
         b_z_m = self.cross_section_shape_.get_b(z_tm)
-        N_z_tm2 = b_z_m * self.get_sig_c_z(self.kappa_t, self.eps_bot_t, z_tm)
+        N_z_tm2 = b_z_m * self.get_sig_c_z(self.kappa_t, self.eps_bot_sol_t, z_tm)
         return np.trapz(N_z_tm2 * z_tm, x=z_tm, axis=-1)
         # Slightly faster option but first and last value will be slightly higher here
         # return np.sum(N_z_tm2 * z_tm * self.cross_section_shape_.H/self.n_kappa, axis=1)
@@ -315,32 +294,13 @@ class MKappa(Model, InjectSymbExpr):
         eta_factor = 1.
         return - eta_factor * (self.M_c_t + self.M_s_t)
 
-    # @tr.cached_property
-    # def _get_M_t(self):
-    #     initial_step = (self.high_kappa - self.low_kappa) / self.num_of_trials
-    #     for i in range(self.num_of_trials):
-    #         try:
-    #             M_t = self.M_c_t + self.M_s_t
-    #         except SolutionNotFoundError:
-    #             print('failed high_kappa: ', self.high_kappa)
-    #             self.high_kappa -= initial_step
-    #         else:
-    #             # This will run when no exception has been received
-    #             print('success high_kappa: ', self.high_kappa)
-    #             if i == 0:
-    #                 print('Note: high_kappa success from 1st try! selecting a higher value for high_kappa may produce '
-    #                       'a more reliable result!')
-    #             return M_t
-    #     print('No solution has been found!')
-    #     return M_t
-
     N_s_tj = tr.Property(depends_on=DEPSTR)
     '''Normal forces (steel)
     '''
 
     @tr.cached_property
     def _get_N_s_tj(self):
-        return self.get_N_s_tj(self.kappa_t, self.eps_bot_t)
+        return self.get_N_s_tj(self.kappa_t, self.eps_bot_sol_t)
 
     eps_tm = tr.Property(depends_on=DEPSTR)
     '''strain profiles
@@ -349,7 +309,7 @@ class MKappa(Model, InjectSymbExpr):
     @tr.cached_property
     def _get_eps_tm(self):
         return self.symb.get_eps_z(self.kappa_t[:, np.newaxis],
-                              self.eps_bot_t[:, np.newaxis], self.z_m[np.newaxis, :])
+                              self.eps_bot_sol_t[:, np.newaxis], self.z_m[np.newaxis, :])
 
     sig_tm = tr.Property(depends_on=DEPSTR)
     '''stress profiles
@@ -358,7 +318,7 @@ class MKappa(Model, InjectSymbExpr):
     @tr.cached_property
     def _get_sig_tm(self):
         return self.get_sig_c_z(
-            self.kappa_t, self.eps_bot_t, self.z_m[np.newaxis, :]
+            self.kappa_t, self.eps_bot_sol_t, self.z_m[np.newaxis, :]
         )
 
     M_norm = tr.Property(depends_on=DEPSTR)
@@ -484,12 +444,19 @@ class MKappa(Model, InjectSymbExpr):
         ax1.set_xlabel('Curvature [mm$^{-1}$]')
         ax1.legend()
 
+
     def plot_strain_profile(self, ax):
         ax.set_ylabel('z [mm]')
         ax.set_xlabel(r'$\varepsilon$ [-]')
         ax.plot(self.eps_tm[self.idx, :], self.z_m)
         ax.axvline(0, linewidth=0.8, color='k')
         ax.fill_betweenx(self.z_m, self.eps_tm[self.idx, :], 0, alpha=0.1)
+
+        eps_z_j = self.eps_z_sol_tj[self.idx]
+        ax.barh(self.z_j, eps_z_j,
+                height=4, color='red', align='center')
+        ax.barh(self.z_j, self.cross_section_layout.eps_0_j, left=eps_z_j,
+                height=2, color='blue', align='center')
 
     def get_mk(self):
         return self.M_t / self.M_scale, self.kappa_t
@@ -533,6 +500,9 @@ class MKappa(Model, InjectSymbExpr):
         According to ACI 440.1R-15
 
         RC - concrete must specify mean strength
+
+        TODO - seems to be specific plotting function which does
+        not belong into the core module of the package
         """
         matmod = self.cross_section_layout.items[0].matmod
         reinf_layers_num = len(self.cross_section_layout.items)
@@ -781,14 +751,3 @@ class MKappa(Model, InjectSymbExpr):
             return fig
 
 
-class MKappaParamsStudy(ParametricStudy):
-    """TODO - put into a separate python module"""
-    def __init__(self, mc):
-        self.mc = mc
-
-    def plot(self, ax, param_name, value):
-        ax.plot(self.mc.kappa_t, self.mc.M_t / self.mc.M_scale, label=param_name + '=' + str(value), lw=2)
-        ax.set_ylabel('Moment [kNm]')
-        ax.set_xlabel('Curvature [mm$^{-1}$]')
-        ax.set_title(param_name)
-        ax.legend()

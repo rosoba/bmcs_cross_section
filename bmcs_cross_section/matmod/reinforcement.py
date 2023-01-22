@@ -134,7 +134,7 @@ class CarbonReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
         bu.Item('factor'),
         bu.Item('E', latex=r'E \mathrm{[N/mm^{2}]}'),
         bu.Item('f_t', latex=r'f_\mathrm{t} \mathrm{[N/mm^{2}]}'),
-        bu.Item('eps_cr', latex=r'\varepsilon_\mathrm{cr} \mathrm{[-]}'),
+        bu.Item('eps_cr', latex=r'\varepsilon_\mathrm{cr} \mathrm{[-]}', readonly=True),
     )
 
     def get_eps_plot_range(self):
