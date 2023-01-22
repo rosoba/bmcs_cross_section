@@ -1,5 +1,4 @@
-from bmcs_cross_section.mkappa.mkappa import MKappa
-from bmcs_cross_section.mkappa.mkappa_pstudy import MKappaParamsStudy
+from bmcs_cross_section.mkappa import MKappa, MKappaRho, MKappaParamsStudy
 from bmcs_cross_section.matmod import \
     ConcreteMatMod, SteelReinfMatMod, CarbonReinfMatMod
 from bmcs_cross_section.matmod.ec2 import EC2
