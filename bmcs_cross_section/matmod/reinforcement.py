@@ -56,9 +56,9 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
     symb_class = SteelReinfMatModSymbExpr
 
     E_s = bu.Float(200000, MAT=True, desc='E modulus of steel')
-    f_sy = bu.Float(500, MAT=True, desc='steel yield stress')
+    f_sy = bu.Float(500, MAT=True, desc='steel yield stress') # f_sy,m= 550
     f_st = bu.Float(525, MAT=True, desc='steel failure stress = k * f_sy; where k is ductility factor (k=1.05, k=1.08 '
-                                        'for A, B steel, respectively')
+                                        'for A, B steel, respectively') # f_st,m = 578
     eps_ud = bu.Float(0.025, MAT=True, desc='steel failure strain')
 
     eps_sy = tr.Property(bu.Float, depends_on='+MAT')

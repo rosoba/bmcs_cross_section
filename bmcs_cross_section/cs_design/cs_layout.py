@@ -1,7 +1,7 @@
 import numpy as np
 import traits.api as tr
 from bmcs_utils.api import \
-    InteractiveModel, View, Item, EitherType, ModelList, List, Button, ButtonEditor, Int
+    InteractiveModel, View, Item, EitherType, ModelList, List, Button, ButtonEditor, Int, Str
 from .cs_reinf_layer import ReinfLayer
 
 class CrossSectionLayout(ModelList):
