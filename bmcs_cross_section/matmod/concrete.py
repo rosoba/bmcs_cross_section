@@ -86,6 +86,10 @@ class PWLConcreteMatMod(ConcreteMatMod, bu.InjectSymbExpr):
     def _get_eps_cu(self):
         return -np.fabs(self._eps_cu)
 
+    f_cm = tr.Property(desc='Mean compressive strength')
+    def _get_f_cm(self):
+        return self.E_cc * self.eps_cy
+
     eps_tu = bu.Float(0.0004, MAT=True, desc='Ultimate matrix tensile strain')
 
     mu = bu.Float(0.33, MAT=True,
