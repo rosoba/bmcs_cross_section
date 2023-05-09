@@ -8,9 +8,9 @@ from bmcs_cross_section.cs_design import CrossSectionDesign
 from scipy.optimize import root
 from bmcs_utils.api import \
     Model, Instance, Item, View, mpl_align_xaxis, ParametricStudy, \
-    SymbExpr, InjectSymbExpr, Float, Int, Bool, FloatRangeEditor, FloatEditor, HistoryEditor
+    SymbExpr, InjectSymbExpr, Float, Int, Bool, HistoryEditor
 
-from bmcs_cross_section.matmod.ec2 import EC2
+from bmcs_cross_section.norms.ec2 import EC2
 
 class SolutionNotFoundError(ValueError):
     pass
