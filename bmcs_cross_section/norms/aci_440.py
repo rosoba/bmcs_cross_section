@@ -19,7 +19,7 @@ class ACI440:
         :param E_f [MPa]: e-modulus of FRP reinf.
         :return: Balanced FRP reinforcement ratio
         """
-        eps_cu = 0.003
+        eps_cu = ACI440.get_eps_cu()
         beta_1 = ACI440.get_beta_1(f_c)
         rho_fb = 0.85 * beta_1 * (f_c / f_fu) * (E_f * eps_cu / (E_f * eps_cu + f_fu))
         return rho_fb
@@ -35,7 +35,7 @@ class ACI440:
         """
         rho = A_f / (b * d)
         rho_balanced = ACI440.get_rho_balanced(f_c, f_fu, E_f)
-        eps_cu = 0.003
+        eps_cu = ACI440.get_eps_cu()
         beta_1 = ACI440.get_beta_1(f_c)
         if rho <= rho_balanced:
             eps_fu = f_fu / E_f
@@ -53,7 +53,7 @@ class ACI440:
     @staticmethod
     def get_psi_f(rho=0.005, f_fu=2500, E_f=158000, f_c=48):
         rho_balanced = ACI440.get_rho_balanced(f_c, f_fu, E_f)
-        eps_cu = 0.003
+        eps_cu = ACI440.get_eps_cu()
         beta_1 = ACI440.get_beta_1(f_c)
         if rho <= rho_balanced:
             return 1
@@ -67,10 +67,14 @@ class ACI440:
     @staticmethod
     def get_psi_c(rho=0.005, A_f=50, f_fu=2500, E_f=158000, f_c=48, b=200, d=280):
         rho_balanced = ACI440.get_rho_balanced(f_c, f_fu, E_f)
-        eps_cu = 0.003
+        eps_cu = ACI440.get_eps_cu()
         beta_1 = ACI440.get_beta_1(f_c)
         if rho <= rho_balanced:
             eps_fu = f_fu / E_f
             c_b = (eps_cu / (eps_cu + eps_fu)) * d
         else:
             return 1
+
+    @staticmethod
+    def get_eps_cu():
+        return 0.003
