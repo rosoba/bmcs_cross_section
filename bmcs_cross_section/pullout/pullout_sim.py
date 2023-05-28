@@ -607,9 +607,10 @@ class PullOutModel(TStepBC, BMCSRootNode, Vis2D):
                   'history'
                   ]
     tree = [
-        # 'time_line', 'cross_section',
-        # 'geometry', 'material_model',
-        # 'loading_scenario',
+        # 'time_line',
+        'cross_section',
+        'geometry', 'material_model',
+        'loading_scenario',
         'history'
     ]
 
