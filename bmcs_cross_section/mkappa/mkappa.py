@@ -129,7 +129,18 @@ class MKappa(Model, InjectSymbExpr):
 
     @tr.cached_property
     def _get_kappa_t(self):
-        return np.linspace(self.low_kappa, self.high_kappa, self.n_kappa)
+        n_kappa = self.n_kappa
+        low_kappa = self.low_kappa
+        high_kappa = self.high_kappa
+        if low_kappa >= 0:
+            # Make kappa list denser up to (0.15 * the kappa range) to capture cracking moment properly, otherwise
+            # deflections in SLS might be inaccurate
+            n_1 = int(0.4 * n_kappa)
+            n_2 = n_kappa - n_1
+            return np.concatenate((np.linspace(low_kappa, 0.15 * high_kappa, n_1, endpoint=False),
+                                       np.linspace(0.15 * high_kappa, high_kappa, n_2)))
+        else:
+            return np.linspace(low_kappa, high_kappa, n_kappa)
 
     z_j = tr.Property
     def _get_z_j(self):
@@ -605,7 +616,7 @@ class MKappa(Model, InjectSymbExpr):
     #         n_1 = int(0.35 * n_rho)
     #         n_2 = int(0.25 * n_rho)
     #         n_3 = n_rho - n_1 - n_2
-    #         rho_list = np.concatenate((np.linspace(0.0002, 0.004, n_1, endpoint=False),
+    #         rho_list = np.concatenate((np.linspace(0.0, 0.004, n_1, endpoint=False),
     #                                    np.linspace(0.004, 0.006, n_2, endpoint=False),
     #                                    np.linspace(0.006, 0.025, n_3)))
     #         print('Non regular rho_list was created (denser up to rho = 0.4%).')
@@ -662,7 +673,7 @@ class MKappa(Model, InjectSymbExpr):
             n_1 = int(0.35 * n_rho)
             n_2 = int(0.25 * n_rho)
             n_3 = n_rho - n_1 - n_2
-            rho_list = np.concatenate((np.linspace(0.0002, 0.004, n_1, endpoint=False),
+            rho_list = np.concatenate((np.linspace(0.0, 0.004, n_1, endpoint=False),
                                        np.linspace(0.004, 0.006, n_2, endpoint=False),
                                        np.linspace(0.006, 0.025, n_3)))
             print('Non regular rho_list was created (denser up to rho = 0.4%).')

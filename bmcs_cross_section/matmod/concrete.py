@@ -34,25 +34,27 @@ class PWLConcreteMatModSymbExpr(bu.SymbExpr):
         real=True, nonpositive=True
     )
 
-    # sig = sp.Piecewise(
-    #     (0, eps < eps_cu),
-    #     (E_cc * eps_cy, eps < eps_cy),
-    #     (E_cc * eps, eps < 0),
-    #     (E_ct * eps, eps < eps_cr),
-    #     (mu * E_ct * eps_cr, eps < eps_tu),
-    #     (0, True)
-    # )
-
-    ext = 0.15  # extension percentage after failure to avoid numerical solution instability
     sig = sp.Piecewise(
-        (0, eps < eps_cu + ext * eps_cy),
-        ((E_cc / ext) * (eps_cu + ext * eps_cy - eps), eps < eps_cu),
+        (0, eps < eps_cu),
         (E_cc * eps_cy, eps < eps_cy),
         (E_cc * eps, eps < 0),
         (E_ct * eps, eps < eps_cr),
         (mu * E_ct * eps_cr, eps < eps_tu),
         (0, True)
     )
+
+    # # If using the following ext instead of (0, eps < eps_cu), better numerical instability (BUT HIGHER MOMENT VALUES in
+    # # case of concrete failure!)
+    # # ext = 0.15
+    # sig = sp.Piecewise(
+    #     (0, eps < eps_cu + ext * eps_cy),
+    #     ((E_cc / ext) * (eps_cu + ext * eps_cy - eps), eps < eps_cu),
+    #     (E_cc * eps_cy, eps < eps_cy),
+    #     (E_cc * eps, eps < 0),
+    #     (E_ct * eps, eps < eps_cr),
+    #     (mu * E_ct * eps_cr, eps < eps_tu),
+    #     (0, True)
+    # )
 
     symb_model_params = ('E_ct', 'E_cc', 'eps_cr', 'eps_cy', 'eps_cu',
                          'mu', 'eps_tu')
@@ -338,7 +340,10 @@ class EC2ConcreteMatModSymbExpr(bu.SymbExpr):
     eta = eps / eps_cy
     sig_c = f_cm * (k * eta - eta ** 2) / (1 + eta * (k - 2))
     sig = -sp.Piecewise(
-        (0, eps < sp.solve(sig_c, eps)[1]), # instead of (0, eps < eps_cu), to avoid extension when f_cm = 50
+        # sp.solve instead of (0, eps < eps_cu), in case of numerical instability (BUT HIGHER MOMENT VALUES in
+        # case of concrete failure!)
+        # (0, eps < sp.solve(sig_c, eps)[1]),
+        (0, eps < eps_cu),
         (sig_c, eps < 0),
         # Tension branch
         (-E_ct * eps, eps < eps_cr),

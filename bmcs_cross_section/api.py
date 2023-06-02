@@ -9,3 +9,5 @@ from bmcs_cross_section.norms.ec2_creep_shrinkage import EC2CreepShrinkage
 # from bmcs_cross_section.pullout.pullout_sim import PullOutModel
 from bmcs_cross_section.cs_design import BarLayer, ReinfLayer, FabricLayer, CrossSectionLayout, \
     CrossSectionDesign, CustomShape, TShape, Rectangle, Circle, ICrossSectionShape, IShape
+
+from bmcs_cross_section.analytical_solutions.ana_frp_bending import AnaFRPBending
