@@ -106,7 +106,6 @@ class CarbonReinfMatModSymbExpr(bu.SymbExpr):
     sig = sp.Piecewise(
         (0, eps < 0),
         (E * eps, eps < f_t_scaled/E),
-        # (f_t_scaled - E * (eps - f_t_scaled/E), eps < 2 * f_t_scaled/E),
         (f_t_scaled - post_peak_factor * E * (eps - f_t_scaled / E), eps < (1 + 1. / post_peak_factor) * f_t_scaled / E),
         (0, True)
     )

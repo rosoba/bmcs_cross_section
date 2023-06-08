@@ -80,12 +80,11 @@ class ACI440:
         return 0.003
 
     @staticmethod
-    def get_w(A_f=50, E_f=158000, M_a = 10, f_c=48, h=220, b=200, d=280, l=3000, l_a=None, load_type='dist'):
+    def get_w(A_f=50, E_f=158000, M_a = 1e6, f_c=48, h=220, b=200, d=280, l=3000, l_a=None, load_type='dist'):
         """ Calculate deflections for a service moment M_a, see PDF page 66 in ACI-440 for an example
         with load combinations.
-        M_a: in [kNm], everything else in N and mm
+        all attributes in N and mm
         """
-        M_a = M_a * 1e6
         rho_f = A_f / (b * d)
         E_c = 4700 * np.sqrt(f_c)
         n_f = E_f / E_c
