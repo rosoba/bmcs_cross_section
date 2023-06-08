@@ -101,11 +101,13 @@ class CarbonReinfMatModSymbExpr(bu.SymbExpr):
     eps = sp.Symbol('eps', real=True)
 
     f_t_scaled, E = sp.symbols('f_t_scaled, E', real=True, nonnegative=True)
-
+    # post_peak_factor defines the steepness of post peak part (1 is equal to pre-peak part, 10 is 10 times steeper)
+    post_peak_factor = 10
     sig = sp.Piecewise(
         (0, eps < 0),
         (E * eps, eps < f_t_scaled/E),
-        (f_t_scaled - E * (eps - f_t_scaled/E), eps < 2 * f_t_scaled/E),
+        # (f_t_scaled - E * (eps - f_t_scaled/E), eps < 2 * f_t_scaled/E),
+        (f_t_scaled - post_peak_factor * E * (eps - f_t_scaled / E), eps < (1 + 1. / post_peak_factor) * f_t_scaled / E),
         (0, True)
     )
 

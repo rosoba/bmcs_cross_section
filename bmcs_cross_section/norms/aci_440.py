@@ -78,3 +78,33 @@ class ACI440:
     @staticmethod
     def get_eps_cu():
         return 0.003
+
+    @staticmethod
+    def get_w(A_f=50, E_f=158000, M_a = 10, f_c=48, h=220, b=200, d=280, l=3000, l_a=None, load_type='dist'):
+        """ Calculate deflections for a service moment M_a, see PDF page 66 in ACI-440 for an example
+        with load combinations.
+        M_a: in [kNm], everything else in N and mm
+        """
+        M_a = M_a * 1e6
+        rho_f = A_f / (b * d)
+        E_c = 4700 * np.sqrt(f_c)
+        n_f = E_f / E_c
+        k = np.sqrt(2 * rho_f * n_f + (rho_f * n_f) ** 2) - rho_f * n_f
+        I_cr = (b * d ** 3 / 3) * k ** 3 + n_f * A_f * d ** 2 * (1 - k) ** 2
+        I_g = b * h ** 3 / 12
+        lambda_ = 1
+        y_t = 0.5 * h
+        M_cr = 0.62 * lambda_ * np.sqrt(f_c) * I_g / y_t
+        gamma = 1.72 - 0.72 * (M_cr / M_a)
+        I_e = min(I_g, I_cr / (1 - gamma * (M_cr / M_a) ** 2 * (1 - I_cr / I_g)))
+
+        if load_type == 'dist':
+            w = 5 * M_a * l ** 2 / (48 * E_c * I_e)
+        elif load_type == '3pb':
+            w = M_a * l ** 2 / (12 * E_c * I_e)
+        elif load_type == '4pb':
+            w = M_a * (3 * l ** 2 - 4 * l_a ** 2) / (24 * E_c * I_e)
+        else:
+            raise ValueError('the provided load_type is not supported!')
+        return w
+
