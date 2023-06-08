@@ -80,22 +80,33 @@ class ACI440:
         return 0.003
 
     @staticmethod
-    def get_w(A_f=50, E_f=158000, M_a = 1e6, f_c=48, h=220, b=200, d=280, l=3000, l_a=None, load_type='dist'):
+    def get_w(A_f=50, E_f=158000, M_a=1e6, f_c=48, h=300, b=200, d=280,
+              l=3000, l_a=None, load_type='dist',
+              f_ct=None, E_c=None
+              ):
         """ Calculate deflections for a service moment M_a, see PDF page 66 in ACI-440 for an example
         with load combinations.
         all attributes in N and mm
+        l_a: relevant only for 4pb which is the distance from support to load
+        f_ct, E_c: are optional, if not provided ACI formulas are used
         """
         rho_f = A_f / (b * d)
-        E_c = 4700 * np.sqrt(f_c)
+        E_c = 4700 * np.sqrt(f_c) if E_c is None else E_c
         n_f = E_f / E_c
         k = np.sqrt(2 * rho_f * n_f + (rho_f * n_f) ** 2) - rho_f * n_f
         I_cr = (b * d ** 3 / 3) * k ** 3 + n_f * A_f * d ** 2 * (1 - k) ** 2
+
         I_g = b * h ** 3 / 12
-        lambda_ = 1
+        lambda_ = 1 # for normal (not light-weight) concrete accord. ACI 318 (Table 19.2.4.1(a))
         y_t = 0.5 * h
-        M_cr = 0.62 * lambda_ * np.sqrt(f_c) * I_g / y_t
-        gamma = 1.72 - 0.72 * (M_cr / M_a)
-        I_e = min(I_g, I_cr / (1 - gamma * (M_cr / M_a) ** 2 * (1 - I_cr / I_g)))
+        f_ct = 0.62 * lambda_ * np.sqrt(f_c) if f_ct is None else f_ct
+        M_cr = f_ct * I_g / y_t
+
+        if M_a <= M_cr:
+            I_e = I_g
+        else:
+            gamma = 1.72 - 0.72 * (M_cr / M_a)
+            I_e = min(I_g, I_cr / (1 - gamma * (M_cr / M_a) ** 2 * (1 - I_cr / I_g)))
 
         if load_type == 'dist':
             w = 5 * M_a * l ** 2 / (48 * E_c * I_e)
@@ -105,5 +116,5 @@ class ACI440:
             w = M_a * (3 * l ** 2 - 4 * l_a ** 2) / (24 * E_c * I_e)
         else:
             raise ValueError('the provided load_type is not supported!')
-        return w
+        return w, (I_g, I_e, I_cr)
 
