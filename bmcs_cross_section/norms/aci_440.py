@@ -116,5 +116,5 @@ class ACI440:
             w = M_a * (3 * l ** 2 - 4 * l_a ** 2) / (24 * E_c * I_e)
         else:
             raise ValueError('the provided load_type is not supported!')
-        return w, (I_g, I_e, I_cr)
+        return w, (I_g, I_e, I_cr, M_cr)
 

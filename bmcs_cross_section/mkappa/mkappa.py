@@ -107,6 +107,7 @@ class MKappa(Model, InjectSymbExpr):
                                   var='kappa_slider',
                                   min_var='low_kappa',
                                   max_var='high_kappa',
+                                  step_value=0.001
                                   ),
     )
 
