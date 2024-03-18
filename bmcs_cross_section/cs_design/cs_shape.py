@@ -68,9 +68,6 @@ class Rectangle(CrossSectionShapeBase):
 @tr.provides(ICrossSectionShape)
 class Circle(CrossSectionShapeBase):
 
-    # TODO->Rostia: provide input field instead minmax range
-    # H from the base class is used as the D, for the diameter of the circular section
-
     H = Float(250, GEO=True)
 
     ipw_view = View(
@@ -86,10 +83,7 @@ class Circle(CrossSectionShapeBase):
     def get_b(self, z_positions_array):
         return np.full_like(z_positions_array, self.H)
 
-        # TODO->Saeed: complete this
-
     def update_plot(self, ax):
-        # TODO->Saeed: fix this
 
         circle = MPL_Circle((0, self.H/2), self.H/2, facecolor=(.5,.5,.5,0.2), edgecolor=(0,0,0,1))
 

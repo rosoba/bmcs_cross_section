@@ -1,7 +1,8 @@
-# from .cs_layout import CrossSectionLayout
+# Importing required modules and classes
 from .cs_layout_dict import CrossSectionLayout
 from .cs_shape import Rectangle, Circle, TShape, CustomShape, ICrossSectionShape, IShape
-from bmcs_utils.api import Model, Item, View, EitherTypeEditor
+from bmcs_utils.api import Model, Item, View, Float, EitherType, Instance
+from bmcs_cross_section.matmod import PWLConcreteMatMod, EC2PlateauConcreteMatMod, EC2ConcreteMatMod
 import traits.api as tr
 import bmcs_utils.api as bu
 from bmcs_cross_section.matmod import ConcreteMatMod
@@ -30,9 +31,7 @@ class CrossSectionDesign(Model):
     depends_on = ['matrix', 'cross_section_layout', 'cross_section_shape']
     tree = ['matrix','cross_section_layout','cross_section_shape']
 
-    csl = tr.Property()
-    def _get_csl(self):
-        return self.cross_section_layout
+    csl = tr.Property(lambda self: self.cross_section_layout)
 
     H = tr.Property(bu.Float)
     def _get_H(self):

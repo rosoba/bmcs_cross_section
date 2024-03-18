@@ -56,9 +56,9 @@ class SteelReinfMatMod(ReinfMatMod, bu.InjectSymbExpr):
     symb_class = SteelReinfMatModSymbExpr
 
     E_s = bu.Float(200000, MAT=True, desc='E modulus of steel')
-    f_sy = bu.Float(500, MAT=True, desc='steel yield stress')
+    f_sy = bu.Float(500, MAT=True, desc='steel yield stress') # f_sy,m= 550
     f_st = bu.Float(525, MAT=True, desc='steel failure stress = k * f_sy; where k is ductility factor (k=1.05, k=1.08 '
-                                        'for A, B steel, respectively')
+                                        'for A, B steel, respectively') # f_st,m = 578
     eps_ud = bu.Float(0.025, MAT=True, desc='steel failure strain')
 
     eps_sy = tr.Property(bu.Float, depends_on='+MAT')
@@ -101,11 +101,12 @@ class CarbonReinfMatModSymbExpr(bu.SymbExpr):
     eps = sp.Symbol('eps', real=True)
 
     f_t_scaled, E = sp.symbols('f_t_scaled, E', real=True, nonnegative=True)
-
+    # post_peak_factor defines the steepness of post peak part (1 is equal to pre-peak part, 10 is 10 times steeper)
+    post_peak_factor = 2.5
     sig = sp.Piecewise(
         (0, eps < 0),
         (E * eps, eps < f_t_scaled/E),
-        (f_t_scaled - E * (eps - f_t_scaled/E), eps < 2 * f_t_scaled/E),
+        (f_t_scaled - post_peak_factor * E * (eps - f_t_scaled / E), eps < (1 + 1. / post_peak_factor) * f_t_scaled / E),
         (0, True)
     )
 

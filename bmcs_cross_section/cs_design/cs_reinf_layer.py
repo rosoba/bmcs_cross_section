@@ -9,15 +9,9 @@ class ReinfLayer(Model):
     # TODO: changes in the ipw interactive window doesn't reflect on mkappa
     #  (maybe because these are lists and changing the elements doesn't notify)
     name = 'Reinf layer'
-
     cs_layout = tr.WeakRef
-
     z = Float(50, CS=True)
-    """z positions of reinforcement layers"""
-
     P = Float(100, CS=True)
-    """Perimeter"""
-
     A = Float(100, CS=True)
     """Cross sectional area"""
 
@@ -48,23 +42,16 @@ class ReinfLayer(Model):
         ax.set_xlabel(r'$\varepsilon$ [-]')
         ax.set_ylabel(r'$F$ [N]')
 
-
 class FabricLayer(ReinfLayer):
-    """Reinforcement with a grid structure
-    """
     name = 'Fabric layer'
     width = Float(100, CS=True)
     spacing = Float(14, CS=True)
     A_roving = Float(1, CS=True)
 
-    A = tr.Property(Float, depends_on='+CS')
-    """cross section area of reinforcement layers"""
     @tr.cached_property
     def _get_A(self):
         return int(self.width/self.spacing) * self.A_roving
 
-    P = tr.Property(Float, depends_on='+CS')
-    """cross section area of reinforcement layers"""
     @tr.cached_property
     def _get_P(self):
         raise NotImplementedError
@@ -84,19 +71,14 @@ class FabricLayer(ReinfLayer):
 
 
 class BarLayer(ReinfLayer):
-    """"Layer consisting of discrete bar reinforcement"""
     name = 'Bar layer'
     ds = Float(16, CS=True)
     count = Int(1, CS=True)
 
-    A = tr.Property(Float, depends_on='+CS')
-    """cross section area of reinforcement layers"""
     @tr.cached_property
     def _get_A(self):
         return self.count * np.pi * (self.ds / 2.) ** 2
 
-    P = tr.Property(Float, depends_on='+CS')
-    """permeter of reinforcement layers"""
     @tr.cached_property
     def _get_P(self):
         return self.count * np.pi * (self.ds)
@@ -107,7 +89,7 @@ class BarLayer(ReinfLayer):
     ipw_view = View(
         Item('matmod', latex=r'\mathrm{behavior}'),
         Item('z', latex=r'z \mathrm{[mm]}'),
-        Item('ds', latex=r'ds \mathrm{[mm]}'),
+        Item('ds', latex=r'ds \mathrm[[mm]}'),
         Item('count', latex='count'),
         Item('eps_0', label='\varepsilon_0 [-]'),
         Item('A', latex=r'A [mm^2]', readonly=True),
