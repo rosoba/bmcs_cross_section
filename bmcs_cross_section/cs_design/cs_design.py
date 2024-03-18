@@ -2,7 +2,6 @@
 from .cs_layout_dict import CrossSectionLayout
 from .cs_shape import Rectangle, Circle, TShape, CustomShape, ICrossSectionShape, IShape
 from bmcs_utils.api import Model, Item, View, Float, EitherType, Instance
-from bmcs_cross_section.matmod import PWLConcreteMatMod, EC2PlateauConcreteMatMod, EC2ConcreteMatMod
 import traits.api as tr
 import bmcs_utils.api as bu
 from bmcs_cross_section.matmod import ConcreteMatMod
@@ -48,7 +47,8 @@ class CrossSectionDesign(Model):
 
     ipw_view = View(
         Item('matrix', latex=r'\mathrm{Conc.~law}'),
-        Item('cross_section_shape', latex=r'\mathrm{CS~shape}', editor=EitherTypeEditor(show_properties=False)),
+        Item('cross_section_shape', latex=r'\mathrm{CS~shape}', 
+             editor=bu.EitherTypeEditor(show_properties=False)),
     )
 
     def subplots(self, fig):

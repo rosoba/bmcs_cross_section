@@ -5,7 +5,8 @@ import traits.api as tr
 from bmcs_cross_section.cs_design import CrossSectionDesign
 from scipy.optimize import root
 from bmcs_utils.api import \
-    Model, Instance, Item, View, mpl_align_xaxis, SymbExpr, InjectSymbExpr, Float, Int, Bool, HistoryEditor
+    Model, Instance, Item, View, mpl_align_xaxis, SymbExpr, \
+    InjectSymbExpr, Float, Int, Bool, HistoryEditor
 
 
 class SolutionNotFoundError(ValueError):
@@ -753,15 +754,3 @@ class MKappa(Model, InjectSymbExpr):
         if ax is None:
             return fig
 
-
-class MKappaParamsStudy(ParametricStudy):
-    """TODO - put into a separate python module"""
-    def __init__(self, mc):
-        self.mc = mc
-
-    def plot(self, ax, param_name, value):
-        ax.plot(self.mc.kappa_t, self.mc.M_t / self.mc.M_scale, label=param_name + '=' + str(value), lw=2)
-        ax.set_ylabel('Moment [kNm]')
-        ax.set_xlabel('Curvature [mm$^{-1}$]')
-        ax.set_title(param_name)
-        ax.legend()
