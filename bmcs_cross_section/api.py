@@ -1,6 +1,6 @@
 from bmcs_cross_section.mkappa import MKappa, MKappaRho, MKappaParamsStudy
 from bmcs_cross_section.matmod import \
-    ConcreteMatMod, EC2PlateauConcreteMatMod, EC2ConcreteMatMod, PWLConcreteMatMod, SteelReinfMatMod, CarbonReinfMatMod
+    ConcreteMatMod, ec2_with_plateau_matmod, ec2_concrete_matmod, pwl_concrete_matmod, SteelReinfMatMod, CarbonReinfMatMod
 from bmcs_cross_section.norms.ec2 import EC2
 from bmcs_cross_section.norms.aci_440 import ACI440
 from bmcs_cross_section.norms.aci_318 import ACI318

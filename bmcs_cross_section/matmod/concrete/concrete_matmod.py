@@ -57,3 +57,8 @@ ec2_concrete_matmod = ConcreteMatMod(
     compression = 'EC2',
     tension = 'piecewise-linear'
 )
+
+ec2_with_plateau_matmod = ConcreteMatMod(
+    compression = 'EC2 with plateau',
+    tension = 'piecewise-linear'
+)

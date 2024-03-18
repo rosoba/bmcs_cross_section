@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 from matplotlib.ticker import PercentFormatter
 
 from .mkappa import MKappa
-from ..matmod import ec2_concrete_matmod
+from ..norms.ec2 import EC2
 
 
 class MKappaRho(MKappa):
@@ -74,7 +74,7 @@ class MKappaRho(MKappa):
         rho = A_f / (b * d)
 
         # Balanced reinf ratio:
-        eps_cu = ec2_concrete_matmod.compression_.get_eps_cu1(f_cm - 8)
+        eps_cu = EC2.get_eps_cu1(f_cm - 8)
         beta_1 = 0.85 if f_cm <= 28 else max((0.85 - 0.05 * (f_cm - 28) / 7), 0.65)
         rho_fb = 0.85 * beta_1 * (f_cm / f_fu) * (E_f * eps_cu / (E_f * eps_cu + f_fu))
 
