@@ -124,7 +124,7 @@ class MKappa(Model, InjectSymbExpr):
         idx = np.argmax(ks <= self.kappa_t)
         return idx
 
-    kappa_t = tr.Property(tr.Array(np.float_), depends_on=DEPSTR)
+    kappa_t = tr.Property(tr.Array(np.float64), depends_on=DEPSTR)
     '''Curvature values for which the bending moment must be found
     '''
 
