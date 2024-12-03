@@ -239,10 +239,7 @@ class MKappa(Model, InjectSymbExpr):
                 init_guess = eps_bot_sol
             res.append(eps_bot_sol)
 
-        if kappa_pos:
-            return res
-        else:
-            return list(reversed(res))
+        return res if kappa_pos else list(reversed(res))
 
     # POSTPROCESSING
 
@@ -334,7 +331,6 @@ class MKappa(Model, InjectSymbExpr):
     M_norm = tr.Property(depends_on=DEPSTR)
     '''
     '''
-
     @tr.cached_property
     def _get_M_norm(self):
         # Section modulus @TODO optimize W for var b
@@ -420,6 +416,7 @@ class MKappa(Model, InjectSymbExpr):
         return ax1, ax2, ax22, ax3
 
     def update_plot(self, axes):
+        print('in update plot', self.kappa_slider)
         self.plot(*axes)
 
     def plot_mk_inv(self, ax3):
